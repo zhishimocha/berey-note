@@ -118,6 +118,7 @@ let touchStart = null
 let profileOpen = false
 let calendarYearOpen = false
 let lastSwipeAt = 0
+let isDeleteMode = false
 
 function loadState() {
   try {
@@ -274,6 +275,27 @@ function redeemReward(id) {
   render()
 }
 
+function deleteTask(taskId) {
+  state.tasks = state.tasks.filter((task) => task.id !== taskId)
+  Object.keys(state.tomorrowFirst).forEach((key) => {
+    if (state.tomorrowFirst[key] === taskId) delete state.tomorrowFirst[key]
+  })
+  saveState()
+  render()
+}
+
+function deleteHabit(id) {
+  state.habits = state.habits.filter((habit) => habit.id !== id)
+  saveState()
+  render()
+}
+
+function deleteReward(id) {
+  state.rewards = state.rewards.filter((reward) => reward.id !== id)
+  saveState()
+  render()
+}
+
 function render() {
   const app = document.querySelector('#app')
   app.innerHTML = screen === 'card' ? renderCardScreen() : screen === 'timer' ? renderTimerScreen() : renderMainScreen()
@@ -388,7 +410,7 @@ function renderQuadrants() {
           <span>明日首要</span>
           <strong>${tomorrowTask ? escapeHtml(tomorrowTask.title) : '长按任务设为明天第一张'}</strong>
         </div>
-        <button class="undo-button" data-action="undo" ${state.lastAction ? '' : 'disabled'}>撤回</button>
+        <button class="delete-mode-button ${isDeleteMode ? 'active' : ''}" data-action="toggle-delete">删除</button>
       </div>
       <div class="quadrant-grid">
         ${Object.entries(quadrantNames).map(([id, name]) => `
@@ -406,9 +428,10 @@ function renderQuadrants() {
 
 function renderSmallTask(task) {
   return `
-    <button class="mini-task" data-task-id="${task.id}">
+    <button class="mini-task ${isDeleteMode ? 'is-deleting' : ''}" data-task-id="${task.id}">
       <span>${escapeHtml(task.title)}</span>
       <small>长按设为明日首要</small>
+      ${isDeleteMode ? `<i class="delete-dot" data-delete-task="${task.id}">×</i>` : ''}
     </button>
   `
 }
@@ -418,6 +441,7 @@ function renderHabits() {
     <section class="compact-list">
       ${state.habits.map((habit) => `
         <article class="habit-row">
+          <button class="delete-dot item-delete" data-delete-habit="${habit.id}" aria-label="删除习惯">×</button>
           <div>
             <strong>${escapeHtml(habit.name)}</strong>
             <span>连续 ${habit.streak} 天 · 目标 ${habit.targetDays || 21} 天</span>
@@ -434,6 +458,7 @@ function renderShop() {
     <section class="shop-grid">
       ${state.rewards.map((reward) => `
         <article class="reward-card">
+          <button class="delete-dot item-delete" data-delete-reward="${reward.id}" aria-label="删除奖励">×</button>
           <strong>${escapeHtml(reward.name)}</strong>
           <span>${reward.cost}分</span>
           <button data-reward-id="${reward.id}">兑换</button>
@@ -643,6 +668,24 @@ function bindEvents() {
   document.querySelectorAll('[data-reward-id]').forEach((button) => {
     button.addEventListener('click', () => redeemReward(button.dataset.rewardId))
   })
+  document.querySelectorAll('[data-delete-task]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.stopPropagation()
+      deleteTask(button.dataset.deleteTask)
+    })
+  })
+  document.querySelectorAll('[data-delete-habit]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.stopPropagation()
+      deleteHabit(button.dataset.deleteHabit)
+    })
+  })
+  document.querySelectorAll('[data-delete-reward]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.stopPropagation()
+      deleteReward(button.dataset.deleteReward)
+    })
+  })
   document.querySelectorAll('[data-heatmap-month]').forEach((button) => {
     button.addEventListener('click', () => {
       setSelectedMonth(selectedDateParts().month + Number(button.dataset.heatmapMonth))
@@ -723,6 +766,7 @@ function handleAction(event) {
   }
   if (action === 'profile') profileOpen = !profileOpen
   if (action === 'undo') undoLastAction()
+  if (action === 'toggle-delete') isDeleteMode = !isDeleteMode
   if (action === 'close-modal') closeModal()
   if (action === 'toggle-timer') toggleTimer()
   if (action === 'pause-timer') pauseTimer()

@@ -2276,3 +2276,29 @@ body {
     right: 34px;
   }
 }
+
+/* v14: use the real bow sticker from the reference border */
+.bow-mark {
+  top: 34px;
+  right: 38px;
+  width: 86px;
+  height: 62px;
+  background: url("./assets/bow-sticker.png") center / contain no-repeat;
+  transform: scaleX(-1) rotate(-13deg);
+  transform-origin: center;
+  filter: drop-shadow(0 7px 10px rgba(127, 23, 36, 0.16));
+}
+
+.bow-mark::before,
+.bow-mark::after {
+  display: none;
+}
+
+@media (max-width: 430px) {
+  .bow-mark {
+    top: 34px;
+    right: 30px;
+    width: 76px;
+    height: 56px;
+  }
+}

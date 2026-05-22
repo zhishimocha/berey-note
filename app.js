@@ -296,11 +296,6 @@ function renderCardScreen() {
             <button type="button" data-action="next-card" ${task ? '' : 'disabled'}>下一张</button>
             <button type="button" data-action="complete-card" ${task ? '' : 'disabled'}>完成 +5</button>
           </div>
-          <div class="swipe-hints">
-            <span>左滑计时</span>
-            <span>上滑下一张</span>
-            <span>右滑完成</span>
-          </div>
         </article>
       </section>
     </main>

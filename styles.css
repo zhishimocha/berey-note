@@ -1897,6 +1897,7 @@ body {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   border-radius: 22px;
+  margin-bottom: 0;
 }
 
 .task-focus-card .card-actions button {
@@ -1906,7 +1907,7 @@ body {
 }
 
 .swipe-hints {
-  z-index: 4;
+  display: none;
 }
 
 /* v10: blue lace timer inspired by the new trim reference */

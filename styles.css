@@ -2051,3 +2051,82 @@ body {
     font-size: 0.72rem;
   }
 }
+
+/* v12: calm double-ring timer and roomier score pill */
+.timer-shell .topbar {
+  grid-template-columns: 48px minmax(0, 1fr) 68px;
+  gap: 8px;
+}
+
+.timer-shell .topbar strong {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgba(117, 161, 184, 0.22);
+  border-radius: 999px;
+  background: #d9eff7;
+  color: var(--berry-dark);
+  font-size: 0.92rem;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow:
+    inset 0 0 0 3px rgba(255, 255, 255, 0.66),
+    0 8px 18px rgba(117, 161, 184, 0.14);
+}
+
+.timer-orb {
+  width: min(64vw, 292px);
+  background:
+    radial-gradient(circle, #fffaf7 0 52%, transparent 53%),
+    radial-gradient(circle, transparent 0 58%, rgba(151, 33, 54, 0.22) 59% 61%, transparent 62%),
+    radial-gradient(circle, transparent 0 67%, #d9eff7 68% 78%, transparent 79%),
+    radial-gradient(circle, #fffdf9 0 100%);
+  box-shadow:
+    0 20px 42px rgba(117, 161, 184, 0.16),
+    0 10px 22px rgba(127, 23, 36, 0.08);
+}
+
+.timer-orb::before {
+  inset: 22px;
+  border: 1px solid rgba(117, 161, 184, 0.2);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, transparent 0 73%, rgba(217, 239, 247, 0.72) 74% 80%, transparent 81%),
+    linear-gradient(#fffdf9, #fff8f8);
+  box-shadow:
+    inset 0 0 0 8px rgba(255, 255, 255, 0.72),
+    inset 0 0 0 14px rgba(245, 214, 220, 0.26);
+}
+
+.timer-orb::after {
+  inset: 42px;
+  border: 1px dashed rgba(151, 33, 54, 0.2);
+  background: transparent;
+}
+
+.timer-orb span {
+  max-width: 62%;
+  color: #951f35;
+  font-size: clamp(1.28rem, 4.4vw, 2.05rem);
+}
+
+@media (max-width: 430px) {
+  .timer-shell .topbar {
+    grid-template-columns: 44px minmax(0, 1fr) 62px;
+  }
+
+  .timer-shell .topbar strong {
+    min-width: 54px;
+    padding: 0 10px;
+    font-size: 0.88rem;
+  }
+
+  .timer-orb {
+    width: min(62vw, 282px);
+  }
+}

@@ -315,7 +315,6 @@ function renderTimerScreen() {
       <header class="topbar">
         <button class="soft-icon" data-action="card">‹</button>
         <div class="timer-title-card">
-          <span>正在靠近</span>
           <h1>${task ? escapeHtml(task.title) : '今天没有待办'}</h1>
         </div>
         <strong>${state.points}分</strong>

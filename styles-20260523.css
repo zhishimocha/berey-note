@@ -2132,6 +2132,108 @@ body {
   }
 }
 
+/* v13: task scoring settings and major events */
+.score-rules {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  margin-bottom: 9px;
+}
+
+.score-rules label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 7px;
+  border: 1px solid rgba(144, 48, 55, 0.13);
+  border-radius: 14px;
+  background: rgba(255, 253, 249, 0.82);
+  box-shadow: 0 5px 12px rgba(127, 23, 36, 0.06);
+}
+
+.score-rules span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.score-rules input {
+  width: 100%;
+  min-height: 28px;
+  border: 1px solid rgba(144, 48, 55, 0.12);
+  border-radius: 999px;
+  background: #fff8f8;
+  color: var(--berry-dark);
+  font-size: 0.8rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+.major-events {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid rgba(117, 161, 184, 0.2);
+  border-radius: 18px;
+  background:
+    linear-gradient(90deg, rgba(217, 239, 247, 0.52), rgba(255, 253, 249, 0.86)),
+    #fffdf9;
+  box-shadow: var(--small-shadow);
+}
+
+.major-events h2,
+.quadrant h2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.major-events h2 {
+  margin: 0;
+  color: var(--berry-dark);
+  font-size: 0.92rem;
+}
+
+.major-events small,
+.quadrant h2 small {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.custom-points-field[hidden] {
+  display: none;
+}
+
+@media (max-width: 430px) {
+  .score-rules {
+    gap: 5px;
+  }
+
+  .score-rules label {
+    padding: 7px 5px;
+  }
+
+  .score-rules span {
+    font-size: 0.62rem;
+  }
+
+  .score-rules input {
+    min-height: 26px;
+    font-size: 0.76rem;
+  }
+
+  .major-events {
+    padding: 9px;
+  }
+}
+
 /* v13: compact delete controls and single large card panel */
 .delete-mode-button,
 .delete-dot {

@@ -50,6 +50,32 @@ const quadrantNames = {
   q4: '不紧急不重要',
 }
 
+const MAJOR_EVENT = 'major'
+const MAJOR_EVENT_MAX_POINTS = 100
+const defaultScoreRules = {
+  q1: 8,
+  q2: 6,
+  q3: 4,
+  q4: 2,
+}
+
+const taskCategoryName = (task) => task?.quadrant === MAJOR_EVENT ? '重大事件' : quadrantNames[task?.quadrant]
+
+function scoreRules() {
+  return { ...defaultScoreRules, ...(state.scoreRules || {}) }
+}
+
+function clampPoints(value, fallback = 5) {
+  const number = Number(value)
+  if (!Number.isFinite(number)) return fallback
+  return Math.min(MAJOR_EVENT_MAX_POINTS, Math.max(1, Math.round(number)))
+}
+
+function taskScore(task) {
+  if (task?.quadrant === MAJOR_EVENT) return clampPoints(task.points, 30)
+  return clampPoints(scoreRules()[task?.quadrant], 5)
+}
+
 const timerModes = [
   { id: 'countup', label: '正计' },
   { id: 'countdown', label: '倒计' },
@@ -64,6 +90,7 @@ const defaultState = () => ({
   completedTotal: 2,
   completions: {},
   tomorrowFirst: {},
+  scoreRules: defaultScoreRules,
   lastAction: null,
   tasks: [
     {
@@ -123,7 +150,13 @@ let isDeleteMode = false
 function loadState() {
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY))
-    return stored ? { ...defaultState(), ...stored } : defaultState()
+    if (!stored) return defaultState()
+    const defaults = defaultState()
+    return {
+      ...defaults,
+      ...stored,
+      scoreRules: { ...defaults.scoreRules, ...(stored.scoreRules || {}) },
+    }
   } catch {
     return defaultState()
   }
@@ -160,8 +193,9 @@ function currentCardTask() {
 function completeTask(taskId) {
   const task = state.tasks.find((item) => item.id === taskId)
   if (!task || task.done) return
+  const earnedPoints = taskScore(task)
   task.done = true
-  state.points += 5
+  state.points += earnedPoints
   state.completedTotal += 1
   state.completions[todayKey()] = (state.completions[todayKey()] || 0) + 1
   Object.keys(state.tomorrowFirst).forEach((key) => {
@@ -186,6 +220,8 @@ function addTask(form) {
   const data = new FormData(form)
   const title = data.get('title').trim()
   if (!title) return
+  const category = data.get('quadrant')
+  const customPoints = category === MAJOR_EVENT ? clampPoints(data.get('customPoints'), 30) : null
   const startDate = data.get('date')
   const endDate = data.get('endDate') || startDate
   const start = new Date(`${startDate}T00:00:00`)
@@ -203,7 +239,8 @@ function addTask(form) {
     id: crypto.randomUUID(),
     title,
     date,
-    quadrant: data.get('quadrant'),
+    quadrant: category,
+    points: customPoints,
     done: false,
     createdAt: createdAt + index,
   }))
@@ -257,6 +294,16 @@ function addReward(form) {
   render()
 }
 
+function updateScoreRule(id, value) {
+  if (!quadrantNames[id]) return
+  state.scoreRules = {
+    ...scoreRules(),
+    [id]: Math.min(30, Math.max(1, Math.round(Number(value) || defaultScoreRules[id]))),
+  }
+  saveState()
+  render()
+}
+
 function checkHabit(id) {
   const habit = state.habits.find((item) => item.id === id)
   if (!habit || habit.checkedDates.includes(todayKey())) return
@@ -304,6 +351,7 @@ function render() {
 
 function renderCardScreen() {
   const task = currentCardTask()
+  const pointsText = task ? `+${taskScore(task)}` : '+0'
   return `
     <main class="shell card-shell">
       <div class="gingham-strip"></div>
@@ -312,11 +360,11 @@ function renderCardScreen() {
         <article class="task-focus-card" data-swipe-card>
           <span class="sticker-label">today first</span>
           <div class="bow-mark"></div>
-          ${task ? `<h1>${escapeHtml(task.title)}</h1><p>${quadrantNames[task.quadrant]}</p>` : `<h1>今天没有待办</h1><p>可以轻轻休息一下</p>`}
+          ${task ? `<h1>${escapeHtml(task.title)}</h1><p>${taskCategoryName(task)} · +${taskScore(task)}分</p>` : `<h1>今天没有待办</h1><p>可以轻轻休息一下</p>`}
           <div class="card-actions">
             <button type="button" data-action="timer" ${task ? '' : 'disabled'}>进入计时</button>
             <button type="button" data-action="next-card" ${task ? '' : 'disabled'}>下一张</button>
-            <button type="button" data-action="complete-card" ${task ? '' : 'disabled'}>完成 +5</button>
+            <button type="button" data-action="complete-card" ${task ? '' : 'disabled'}>完成 ${pointsText}</button>
           </div>
         </article>
       </section>
@@ -327,6 +375,7 @@ function renderCardScreen() {
 function renderTimerScreen() {
   const task = state.tasks.find((item) => item.id === activeTimerTaskId) || currentCardTask()
   const display = formatTimer(timerSeconds, timerMode)
+  const pointsText = task ? `+${taskScore(task)}` : '+0'
   return `
     <main class="shell timer-shell">
       <header class="topbar">
@@ -347,7 +396,7 @@ function renderTimerScreen() {
       </section>
       <div class="timer-actions">
         <button data-action="pause-timer">暂停</button>
-        <button data-action="finish-timer" ${task ? '' : 'disabled'}>完成 +5</button>
+        <button data-action="finish-timer" ${task ? '' : 'disabled'}>完成 ${pointsText}</button>
         <button data-action="rest-timer">休息</button>
       </div>
     </main>
@@ -403,8 +452,18 @@ function renderActiveView() {
 function renderQuadrants() {
   const tomorrowId = state.tomorrowFirst[addDays(state.selectedDate, 1)]
   const tomorrowTask = state.tasks.find((task) => task.id === tomorrowId)
+  const rules = scoreRules()
+  const majorTasks = visibleTasks().filter((task) => task.quadrant === MAJOR_EVENT)
   return `
     <section class="content-stack">
+      <div class="score-rules">
+        ${Object.entries(quadrantNames).map(([id, name]) => `
+          <label>
+            <span>${name}</span>
+            <input type="number" min="1" max="30" value="${rules[id]}" data-score-rule="${id}" />
+          </label>
+        `).join('')}
+      </div>
       <div class="quadrant-tools">
         <div class="tomorrow-slot">
           <span>明日首要</span>
@@ -412,10 +471,16 @@ function renderQuadrants() {
         </div>
         <button class="delete-mode-button ${isDeleteMode ? 'active' : ''}" data-action="toggle-delete">删除</button>
       </div>
+      <section class="major-events">
+        <h2>重大事件 <small>最高 ${MAJOR_EVENT_MAX_POINTS} 分</small></h2>
+        <div class="task-list">
+          ${majorTasks.map(renderSmallTask).join('') || '<p class="empty">把长期积累的大事放这里</p>'}
+        </div>
+      </section>
       <div class="quadrant-grid">
         ${Object.entries(quadrantNames).map(([id, name]) => `
           <section class="quadrant">
-            <h2>${name}</h2>
+            <h2>${name}<small>${rules[id]}分</small></h2>
             <div class="task-list">
               ${visibleTasks().filter((task) => task.quadrant === id).map(renderSmallTask).join('') || '<p class="empty">先空着</p>'}
             </div>
@@ -430,7 +495,7 @@ function renderSmallTask(task) {
   return `
     <button class="mini-task ${isDeleteMode ? 'is-deleting' : ''}" data-task-id="${task.id}">
       <span>${escapeHtml(task.title)}</span>
-      <small>长按设为明日首要</small>
+      <small>${taskCategoryName(task)} · +${taskScore(task)}分</small>
       ${isDeleteMode ? `<i class="delete-dot" data-delete-task="${task.id}">×</i>` : ''}
     </button>
   `
@@ -623,6 +688,7 @@ function openModal(content) {
 function enhanceTaskModal() {
   const form = document.querySelector('[data-form="task"]')
   const dateInput = form?.querySelector('input[name="date"]')
+  const select = form?.querySelector('select[name="quadrant"]')
   if (!form || !dateInput || form.querySelector('input[name="endDate"]')) return
 
   const endLabel = document.createElement('label')
@@ -634,6 +700,32 @@ function enhanceTaskModal() {
   endInput.required = true
   endLabel.append(endInput)
   dateInput.closest('label')?.after(endLabel)
+
+  if (select && !select.querySelector(`option[value="${MAJOR_EVENT}"]`)) {
+    const option = document.createElement('option')
+    option.value = MAJOR_EVENT
+    option.textContent = '重大事件'
+    select.append(option)
+  }
+
+  const pointLabel = document.createElement('label')
+  pointLabel.className = 'custom-points-field'
+  pointLabel.textContent = `重大事件积分（最高 ${MAJOR_EVENT_MAX_POINTS}）`
+  const pointInput = document.createElement('input')
+  pointInput.name = 'customPoints'
+  pointInput.type = 'number'
+  pointInput.min = '1'
+  pointInput.max = String(MAJOR_EVENT_MAX_POINTS)
+  pointInput.value = '30'
+  pointLabel.append(pointInput)
+  select?.closest('label')?.after(pointLabel)
+
+  const syncCustomPoints = () => {
+    pointLabel.hidden = select?.value !== MAJOR_EVENT
+    pointInput.disabled = select?.value !== MAJOR_EVENT
+  }
+  select?.addEventListener('change', syncCustomPoints)
+  syncCustomPoints()
 }
 
 function closeModal() {
@@ -655,6 +747,9 @@ function bindEvents() {
       saveState()
       render()
     })
+  })
+  document.querySelectorAll('[data-score-rule]').forEach((input) => {
+    input.addEventListener('change', () => updateScoreRule(input.dataset.scoreRule, input.value))
   })
   document.querySelectorAll('[data-timer-mode]').forEach((button) => {
     button.addEventListener('click', () => switchTimerMode(button.dataset.timerMode))

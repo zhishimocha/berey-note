@@ -2678,13 +2678,21 @@ body {
 @media (max-width: 430px) {
   .card-shell::after {
     position: fixed;
-    left: 0;
-    right: 0;
-    bottom: calc((100vw * 257 / 941) - 8px);
+    left: 50%;
+    bottom: calc((100vw * 257 / 941) - 10px);
     z-index: 2;
     display: block;
-    height: 10px;
+    width: min(86vw, 390px);
+    height: 14px;
+    border-radius: 999px;
     pointer-events: none;
-    background: #fffaf6;
+    background: linear-gradient(
+      90deg,
+      rgba(255, 250, 246, 0),
+      #fffaf6 10%,
+      #fffaf6 90%,
+      rgba(255, 250, 246, 0)
+    );
+    transform: translateX(-50%);
   }
 }

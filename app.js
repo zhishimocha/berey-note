@@ -351,7 +351,6 @@ function render() {
 
 function renderCardScreen() {
   const task = currentCardTask()
-  const pointsText = task ? `+${taskScore(task)}` : '+0'
   return `
     <main class="shell card-shell">
       <div class="gingham-strip"></div>
@@ -364,7 +363,7 @@ function renderCardScreen() {
           <div class="card-actions">
             <button type="button" data-action="timer" ${task ? '' : 'disabled'}>进入计时</button>
             <button type="button" data-action="next-card" ${task ? '' : 'disabled'}>下一张</button>
-            <button type="button" data-action="complete-card" ${task ? '' : 'disabled'}>完成 ${pointsText}</button>
+            <button type="button" data-action="complete-card" ${task ? '' : 'disabled'}>完成</button>
           </div>
         </article>
       </section>
@@ -375,7 +374,6 @@ function renderCardScreen() {
 function renderTimerScreen() {
   const task = state.tasks.find((item) => item.id === activeTimerTaskId) || currentCardTask()
   const display = formatTimer(timerSeconds, timerMode)
-  const pointsText = task ? `+${taskScore(task)}` : '+0'
   return `
     <main class="shell timer-shell">
       <header class="topbar">
@@ -396,7 +394,7 @@ function renderTimerScreen() {
       </section>
       <div class="timer-actions">
         <button data-action="pause-timer">暂停</button>
-        <button data-action="finish-timer" ${task ? '' : 'disabled'}>完成 ${pointsText}</button>
+        <button data-action="finish-timer" ${task ? '' : 'disabled'}>完成</button>
         <button data-action="rest-timer">休息</button>
       </div>
     </main>

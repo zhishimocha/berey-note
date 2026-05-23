@@ -2602,3 +2602,75 @@ body {
     margin-bottom: 36px;
   }
 }
+
+/* v22: keep the mobile card compact and lock the card page without moving the trim */
+@media (max-width: 430px) {
+  html:has(.card-shell),
+  body:has(.card-shell) {
+    height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  .card-shell {
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
+    background:
+      url("./assets/top-border.png") top center / 100% auto no-repeat,
+      url("./assets/bottom-border.png") bottom center / 100% auto no-repeat,
+      #fffaf6;
+  }
+
+  .card-stage {
+    height: 100dvh;
+    min-height: 0;
+    align-content: start;
+    padding: 98px 24px 0;
+    overflow: hidden;
+  }
+
+  .task-focus-card {
+    width: min(91vw, 420px);
+    min-height: 64vh;
+    height: auto;
+    max-height: none;
+    padding: 96px 24px 34px;
+  }
+
+  .task-focus-card h1 {
+    margin-top: 13vh;
+  }
+
+  .task-focus-card .card-actions {
+    margin-top: 62px;
+    margin-bottom: 36px;
+  }
+
+  .card-stage::after {
+    display: none;
+  }
+}
+
+@media (max-width: 380px) {
+  .card-stage {
+    padding-top: 92px;
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .task-focus-card {
+    min-height: 62vh;
+    padding-top: 88px;
+    padding-bottom: 28px;
+  }
+
+  .task-focus-card h1 {
+    margin-top: 11vh;
+  }
+
+  .task-focus-card .card-actions {
+    margin-top: 48px;
+    margin-bottom: 30px;
+  }
+}

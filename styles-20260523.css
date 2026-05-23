@@ -2674,3 +2674,17 @@ body {
     margin-bottom: 30px;
   }
 }
+/* v23: hide the top seam baked into the mobile bottom trim asset */
+@media (max-width: 430px) {
+  .card-shell::after {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc((100vw * 257 / 941) - 8px);
+    z-index: 2;
+    display: block;
+    height: 10px;
+    pointer-events: none;
+    background: #fffaf6;
+  }
+}

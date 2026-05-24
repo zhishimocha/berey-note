@@ -85,6 +85,7 @@ const timerModes = [
 
 const defaultState = () => ({
   selectedDate: todayKey(),
+  lastSeenDate: todayKey(),
   activeView: 'quadrants',
   points: 15,
   completedTotal: 2,
@@ -152,17 +153,23 @@ function loadState() {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY))
     if (!stored) return defaultState()
     const defaults = defaultState()
-    return {
+    const loaded = {
       ...defaults,
       ...stored,
       scoreRules: { ...defaults.scoreRules, ...(stored.scoreRules || {}) },
     }
+    if (loaded.lastSeenDate !== todayKey()) {
+      loaded.selectedDate = todayKey()
+      loaded.lastSeenDate = todayKey()
+    }
+    return loaded
   } catch {
     return defaultState()
   }
 }
 
 function saveState() {
+  state.lastSeenDate = todayKey()
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
 }
 
@@ -219,6 +226,7 @@ function setTomorrowFirst(taskId) {
 function addTask(form) {
   const data = new FormData(form)
   const title = data.get('title').trim()
+  const note = data.get('note')?.trim() || ''
   if (!title) return
   const category = data.get('quadrant')
   const customPoints = category === MAJOR_EVENT ? clampPoints(data.get('customPoints'), 30) : null
@@ -238,6 +246,7 @@ function addTask(form) {
   const tasks = (days.length ? days : [startDate]).map((date, index) => ({
     id: crypto.randomUUID(),
     title,
+    note,
     date,
     quadrant: category,
     points: customPoints,
@@ -359,7 +368,7 @@ function renderCardScreen() {
         <article class="task-focus-card" data-swipe-card>
           <span class="sticker-label">today first</span>
           <div class="bow-mark"></div>
-          ${task ? `<h1>${escapeHtml(task.title)}</h1><p>${taskCategoryName(task)} · +${taskScore(task)}分</p>` : `<h1>今天没有待办</h1><p>可以轻轻休息一下</p>`}
+          ${task ? `<h1>${escapeHtml(task.title)}</h1><p>${taskCategoryName(task)} · +${taskScore(task)}分</p>${task.note ? `<p class="task-note">${escapeHtml(task.note)}</p>` : ''}` : `<h1>今天没有待办</h1><p>可以轻轻休息一下</p>`}
           <div class="card-actions">
             <button type="button" data-action="timer" ${task ? '' : 'disabled'}>进入计时</button>
             <button type="button" data-action="next-card" ${task ? '' : 'disabled'}>下一张</button>
@@ -431,11 +440,23 @@ function renderMainScreen() {
 }
 
 function renderProfileMenu() {
+  const rules = scoreRules()
   return `
     <section class="profile-menu">
       <button>个人资料</button>
       <button>同步设置</button>
       <button>主题收藏</button>
+      <div class="profile-score-settings">
+        <strong>基础分</strong>
+        <div class="score-rules">
+          ${Object.entries(quadrantNames).map(([id, name]) => `
+            <label>
+              <span>${name}</span>
+              <input type="number" min="1" max="30" value="${rules[id]}" data-score-rule="${id}" />
+            </label>
+          `).join('')}
+        </div>
+      </div>
     </section>
   `
 }
@@ -450,18 +471,9 @@ function renderActiveView() {
 function renderQuadrants() {
   const tomorrowId = state.tomorrowFirst[addDays(state.selectedDate, 1)]
   const tomorrowTask = state.tasks.find((task) => task.id === tomorrowId)
-  const rules = scoreRules()
   const majorTasks = visibleTasks().filter((task) => task.quadrant === MAJOR_EVENT)
   return `
     <section class="content-stack">
-      <div class="score-rules">
-        ${Object.entries(quadrantNames).map(([id, name]) => `
-          <label>
-            <span>${name}</span>
-            <input type="number" min="1" max="30" value="${rules[id]}" data-score-rule="${id}" />
-          </label>
-        `).join('')}
-      </div>
       <div class="quadrant-tools">
         <div class="tomorrow-slot">
           <span>明日首要</span>
@@ -470,17 +482,17 @@ function renderQuadrants() {
         <button class="delete-mode-button ${isDeleteMode ? 'active' : ''}" data-action="toggle-delete">删除</button>
       </div>
       <section class="major-events">
-        <h2>重大事件 <small>最高 ${MAJOR_EVENT_MAX_POINTS} 分</small></h2>
+        <h2>重大事件</h2>
         <div class="task-list">
-          ${majorTasks.map(renderSmallTask).join('') || '<p class="empty">把长期积累的大事放这里</p>'}
+          ${majorTasks.map(renderSmallTask).join('')}
         </div>
       </section>
       <div class="quadrant-grid">
         ${Object.entries(quadrantNames).map(([id, name]) => `
           <section class="quadrant">
-            <h2>${name}<small>${rules[id]}分</small></h2>
+            <h2>${name}</h2>
             <div class="task-list">
-              ${visibleTasks().filter((task) => task.quadrant === id).map(renderSmallTask).join('') || '<p class="empty">先空着</p>'}
+              ${visibleTasks().filter((task) => task.quadrant === id).map(renderSmallTask).join('')}
             </div>
           </section>
         `).join('')}
@@ -493,6 +505,7 @@ function renderSmallTask(task) {
   return `
     <button class="mini-task ${isDeleteMode ? 'is-deleting' : ''}" data-task-id="${task.id}">
       <span>${escapeHtml(task.title)}</span>
+      ${task.note ? `<em>${escapeHtml(task.note)}</em>` : ''}
       <small>${taskCategoryName(task)} · +${taskScore(task)}分</small>
       ${isDeleteMode ? `<i class="delete-dot" data-delete-task="${task.id}">×</i>` : ''}
     </button>
@@ -644,6 +657,7 @@ function openAddModal() {
     <form class="modal-form" data-form="task">
       <h2>添加任务</h2>
       <label>任务名称<input name="title" autocomplete="off" required /></label>
+      <label>备注<textarea name="note" rows="3"></textarea></label>
       <label>所属日期<input name="date" type="date" value="${state.selectedDate}" required /></label>
       <label>所属象限
         <select name="quadrant">
@@ -850,6 +864,8 @@ function handleAction(event) {
   if (action === 'next-card') nextCard()
   if (action === 'complete-card') completeTask(currentCardTask()?.id)
   if (action === 'add') {
+    profileOpen = false
+    document.querySelector('.profile-menu')?.remove()
     openAddModal()
     enhanceTaskModal()
   }

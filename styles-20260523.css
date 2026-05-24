@@ -454,6 +454,33 @@ button:disabled {
   font-weight: 800;
 }
 
+.mini-task em,
+.task-note {
+  position: relative;
+  color: var(--muted);
+  font-style: normal;
+  font-weight: 700;
+}
+
+.mini-task em {
+  overflow: hidden;
+  font-size: 0.74rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-note {
+  max-width: min(84%, 520px);
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: 1px solid rgba(144, 48, 55, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 248, 248, 0.72);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
 .empty {
   margin: 10px 0;
   color: var(--muted);
@@ -641,14 +668,26 @@ button:disabled {
 }
 
 .modal-form input,
-.modal-form select {
+.modal-form select,
+.modal-form textarea {
   width: 100%;
-  min-height: 42px;
   padding: 0 12px;
   border: 1px solid rgba(127, 23, 36, 0.18);
   border-radius: 14px;
   background: #fffaf7;
   color: var(--ink);
+}
+
+.modal-form input,
+.modal-form select {
+  min-height: 42px;
+}
+
+.modal-form textarea {
+  min-height: 76px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  resize: vertical;
 }
 
 .modal-form button[type="submit"] {
@@ -2694,5 +2733,25 @@ body {
 @media (max-width: 430px) {
   .card-shell::after {
     display: none;
+  }
+}
+
+/* v24: move scoring controls into a roomier profile panel */
+.profile-menu {
+  width: min(86vw, 360px);
+}
+
+.profile-menu .profile-score-settings {
+  margin-top: 2px;
+}
+
+.profile-menu .score-rules {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 430px) {
+  .profile-menu {
+    width: min(86vw, 340px);
+    min-width: 260px;
   }
 }

@@ -88,6 +88,7 @@ const defaultState = () => ({
   lastSeenDate: todayKey(),
   activeView: 'quadrants',
   points: 15,
+  avatarImage: '',
   completedTotal: 2,
   completions: {},
   tomorrowFirst: {},
@@ -427,7 +428,9 @@ function renderMainScreen() {
           <span>积分</span>
           <strong>${state.points}</strong>
         </div>
-        <button class="avatar-button" data-action="profile" aria-label="头像菜单"></button>
+        <button class="avatar-button" data-action="profile" aria-label="头像菜单">
+          ${state.avatarImage ? `<img src="${escapeHtml(state.avatarImage)}" alt="" />` : ''}
+        </button>
       </header>
       ${profileOpen ? renderProfileMenu() : ''}
       ${renderActiveView()}
@@ -446,11 +449,26 @@ function renderMainScreen() {
 }
 
 function renderProfileMenu() {
-  const rules = scoreRules()
   return `
     <section class="profile-menu">
-      <button>个人资料</button>
-      <button>同步设置</button>
+      <button data-action="open-profile-modal">个人资料</button>
+      <button data-action="open-sync-modal">同步设置</button>
+    </section>
+  `
+}
+
+function openProfileModal() {
+  const rules = scoreRules()
+  profileOpen = false
+  document.querySelector('.profile-menu')?.remove()
+  openModal(`
+    <div class="modal-form profile-panel">
+      <h2>个人资料</h2>
+      <label class="avatar-picker">
+        <span>头像</span>
+        <input type="file" accept="image/*" data-avatar-upload />
+        <i>${state.avatarImage ? `<img src="${escapeHtml(state.avatarImage)}" alt="" />` : ''}</i>
+      </label>
       <div class="profile-score-settings">
         <strong>基础分</strong>
         <div class="score-rules">
@@ -462,8 +480,23 @@ function renderProfileMenu() {
           `).join('')}
         </div>
       </div>
-    </section>
-  `
+    </div>
+  `)
+}
+
+function openSyncModal() {
+  profileOpen = false
+  document.querySelector('.profile-menu')?.remove()
+  openModal(`
+    <div class="modal-form sync-panel">
+      <h2>同步设置</h2>
+      <button type="button" data-export-state>导出</button>
+      <label class="import-button">
+        导入
+        <input type="file" accept="application/json,.json" data-import-state />
+      </label>
+    </div>
+  `)
 }
 
 function renderActiveView() {
@@ -847,6 +880,73 @@ function closeModal() {
   document.querySelector('.modal-backdrop')?.remove()
 }
 
+function updateAvatar(file) {
+  if (!file || !file.type.startsWith('image/')) return toast('请选择图片文件')
+  const image = new Image()
+  const url = URL.createObjectURL(file)
+  image.addEventListener('load', () => {
+    const size = 512
+    const canvas = document.createElement('canvas')
+    const context = canvas.getContext('2d')
+    if (!context) {
+      URL.revokeObjectURL(url)
+      return toast('头像处理失败')
+    }
+    const scale = Math.max(size / image.width, size / image.height)
+    const width = image.width * scale
+    const height = image.height * scale
+    canvas.width = size
+    canvas.height = size
+    context.drawImage(image, (size - width) / 2, (size - height) / 2, width, height)
+    URL.revokeObjectURL(url)
+    state.avatarImage = canvas.toDataURL('image/jpeg', 0.86)
+    saveState()
+    render()
+    openProfileModal()
+  })
+  image.addEventListener('error', () => {
+    URL.revokeObjectURL(url)
+    toast('头像读取失败')
+  })
+  image.src = url
+}
+
+function exportState() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `berry-todo-${todayKey()}.json`
+  document.body.append(link)
+  link.click()
+  link.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 0)
+}
+
+function importState(file) {
+  if (!file) return
+  const reader = new FileReader()
+  reader.addEventListener('load', () => {
+    try {
+      const imported = JSON.parse(reader.result)
+      const defaults = defaultState()
+      state = {
+        ...defaults,
+        ...imported,
+        scoreRules: { ...defaults.scoreRules, ...(imported.scoreRules || {}) },
+      }
+      calendarCursor = new Date(`${state.selectedDate}T00:00:00`)
+      saveState()
+      closeModal()
+      render()
+      toast('已导入')
+    } catch {
+      toast('导入失败')
+    }
+  })
+  reader.readAsText(file)
+}
+
 function bindEvents() {
   document.querySelectorAll('[data-action]').forEach((button) => {
     button.addEventListener('click', handleAction)
@@ -916,6 +1016,16 @@ function bindEvents() {
 function bindModalEvents() {
   document.querySelectorAll('.modal-backdrop [data-action]').forEach((button) => {
     button.addEventListener('click', handleAction)
+  })
+  document.querySelectorAll('.modal-backdrop [data-score-rule]').forEach((input) => {
+    input.addEventListener('change', () => updateScoreRule(input.dataset.scoreRule, input.value))
+  })
+  document.querySelector('[data-avatar-upload]')?.addEventListener('change', (event) => {
+    updateAvatar(event.currentTarget.files?.[0])
+  })
+  document.querySelector('[data-export-state]')?.addEventListener('click', exportState)
+  document.querySelector('[data-import-state]')?.addEventListener('change', (event) => {
+    importState(event.currentTarget.files?.[0])
   })
   const permanentToggle = document.querySelector('[data-habit-permanent]')
   const habitEndInput = document.querySelector('[data-habit-end]')
@@ -995,6 +1105,8 @@ function handleAction(event) {
     renderCalendar()
   }
   if (action === 'profile') profileOpen = !profileOpen
+  if (action === 'open-profile-modal') openProfileModal()
+  if (action === 'open-sync-modal') openSyncModal()
   if (action === 'undo') undoLastAction()
   if (action === 'toggle-delete') isDeleteMode = !isDeleteMode
   if (action === 'close-modal') closeModal()
@@ -1010,7 +1122,7 @@ function handleAction(event) {
 }
 
 function renderIfNeeded(action) {
-  const noRender = ['add', 'calendar', 'close-modal', 'continue-timer']
+  const noRender = ['add', 'calendar', 'close-modal', 'continue-timer', 'open-profile-modal', 'open-sync-modal']
   if (!noRender.includes(action)) render()
 }
 

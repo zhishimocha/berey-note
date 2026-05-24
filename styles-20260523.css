@@ -687,7 +687,30 @@ button:disabled {
   min-height: 76px;
   padding-top: 10px;
   padding-bottom: 10px;
+  max-width: 100%;
   resize: vertical;
+}
+
+.modal-form .check-field {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgba(127, 23, 36, 0.14);
+  border-radius: 999px;
+  background: #fff8f8;
+}
+
+.modal-form .check-field input {
+  width: auto;
+  min-height: 0;
+  padding: 0;
+}
+
+.modal-form label.is-disabled {
+  opacity: 0.52;
 }
 
 .modal-form button[type="submit"] {

@@ -120,8 +120,8 @@ const defaultState = () => ({
     },
   ],
   habits: [
-    { id: crypto.randomUUID(), name: '喝水', streak: 3, checkedDates: [] },
-    { id: crypto.randomUUID(), name: '睡前收尾', streak: 1, checkedDates: [] },
+    { id: crypto.randomUUID(), name: '喝水', streak: 3, startDate: todayKey(), endDate: addDays(todayKey(), 20), permanent: false, checkedDates: [] },
+    { id: crypto.randomUUID(), name: '睡前收尾', streak: 1, startDate: todayKey(), permanent: true, checkedDates: [] },
   ],
   rewards: [
     { id: crypto.randomUUID(), name: '休息半小时', cost: 20 },
@@ -284,9 +284,14 @@ function undoLastAction() {
 function addHabit(form) {
   const data = new FormData(form)
   const name = data.get('name').trim()
-  const targetDays = Math.max(1, Number(data.get('targetDays')) || 21)
+  const startDate = data.get('startDate') || todayKey()
+  const permanent = data.get('permanent') === 'on'
+  const endDate = permanent ? null : data.get('endDate') || startDate
   if (!name) return
-  state.habits.push({ id: crypto.randomUUID(), name, streak: 0, targetDays, checkedDates: [] })
+  const targetDays = permanent
+    ? null
+    : Math.max(1, Math.round((new Date(`${endDate}T00:00:00`) - new Date(`${startDate}T00:00:00`)) / 86400000) + 1)
+  state.habits.push({ id: crypto.randomUUID(), name, streak: 0, startDate, endDate, permanent, targetDays, checkedDates: [] })
   saveState()
   closeModal()
   render()
@@ -445,7 +450,6 @@ function renderProfileMenu() {
     <section class="profile-menu">
       <button>个人资料</button>
       <button>同步设置</button>
-      <button>主题收藏</button>
       <div class="profile-score-settings">
         <strong>基础分</strong>
         <div class="score-rules">
@@ -520,13 +524,21 @@ function renderHabits() {
           <button class="delete-dot item-delete" data-delete-habit="${habit.id}" aria-label="删除习惯">×</button>
           <div>
             <strong>${escapeHtml(habit.name)}</strong>
-            <span>连续 ${habit.streak} 天 · 目标 ${habit.targetDays || 21} 天</span>
+            <span>${habitMeta(habit)}</span>
           </div>
           <button class="check-round ${habit.checkedDates.includes(todayKey()) ? 'done' : ''}" data-habit-id="${habit.id}"></button>
         </article>
       `).join('')}
     </section>
   `
+}
+
+function habitMeta(habit) {
+  const range = habit.permanent
+    ? `${shortDate(habit.startDate || todayKey())} 起 · 永久`
+    : `${shortDate(habit.startDate || todayKey())} - ${shortDate(habit.endDate || addDays(habit.startDate || todayKey(), (habit.targetDays || 21) - 1))}`
+  const target = habit.permanent ? '一直保持' : `目标 ${habit.targetDays || 21} 天`
+  return `连续 ${habit.streak} 天 · ${target} · ${range}`
 }
 
 function renderShop() {
@@ -638,7 +650,9 @@ function openAddModal() {
       <form class="modal-form" data-form="habit">
         <h2>添加习惯</h2>
         <label>习惯名称<input name="name" autocomplete="off" required /></label>
-        <label>要保持多少天<input name="targetDays" type="number" min="1" value="21" required /></label>
+        <label>从哪天开始<input name="startDate" type="date" value="${state.selectedDate}" required /></label>
+        <label>做到哪天<input name="endDate" type="date" value="${addDays(state.selectedDate, 20)}" data-habit-end required /></label>
+        <label class="check-field"><input name="permanent" type="checkbox" data-habit-permanent /> 永久</label>
         <button type="submit">保存</button>
       </form>
     `)
@@ -809,6 +823,16 @@ function bindModalEvents() {
   document.querySelectorAll('.modal-backdrop [data-action]').forEach((button) => {
     button.addEventListener('click', handleAction)
   })
+  const permanentToggle = document.querySelector('[data-habit-permanent]')
+  const habitEndInput = document.querySelector('[data-habit-end]')
+  if (permanentToggle && habitEndInput) {
+    const syncPermanent = () => {
+      habitEndInput.disabled = permanentToggle.checked
+      habitEndInput.closest('label')?.classList.toggle('is-disabled', permanentToggle.checked)
+    }
+    permanentToggle.addEventListener('change', syncPermanent)
+    syncPermanent()
+  }
   document.querySelectorAll('[data-form]').forEach((form) => {
     form.addEventListener('submit', (event) => {
       event.preventDefault()

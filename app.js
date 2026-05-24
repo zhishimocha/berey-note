@@ -320,7 +320,7 @@ function updateScoreRule(id, value) {
 
 function checkHabit(id) {
   const habit = state.habits.find((item) => item.id === id)
-  if (!habit || habit.checkedDates.includes(todayKey())) return
+  if (!habit || !isHabitVisible(habit) || habit.checkedDates.includes(todayKey())) return
   habit.checkedDates.push(todayKey())
   habit.streak += 1
   state.points += 5
@@ -517,9 +517,10 @@ function renderSmallTask(task) {
 }
 
 function renderHabits() {
+  const habits = state.habits.filter(isHabitVisible)
   return `
     <section class="compact-list">
-      ${state.habits.map((habit) => `
+      ${habits.map((habit) => `
         <article class="habit-row">
           <button class="delete-dot item-delete" data-delete-habit="${habit.id}" aria-label="删除习惯">×</button>
           <div>
@@ -533,12 +534,17 @@ function renderHabits() {
   `
 }
 
+function isHabitVisible(habit) {
+  if (!habit.startDate && !habit.endDate && !habit.permanent) return true
+  const today = todayKey()
+  const startDate = habit.startDate || today
+  if (today < startDate) return false
+  if (habit.permanent) return true
+  return today <= (habit.endDate || addDays(startDate, (habit.targetDays || 21) - 1))
+}
+
 function habitMeta(habit) {
-  const range = habit.permanent
-    ? `${shortDate(habit.startDate || todayKey())} 起 · 永久`
-    : `${shortDate(habit.startDate || todayKey())} - ${shortDate(habit.endDate || addDays(habit.startDate || todayKey(), (habit.targetDays || 21) - 1))}`
-  const target = habit.permanent ? '一直保持' : `目标 ${habit.targetDays || 21} 天`
-  return `连续 ${habit.streak} 天 · ${target} · ${range}`
+  return `连续 ${habit.streak} 天`
 }
 
 function renderShop() {
@@ -671,7 +677,7 @@ function openAddModal() {
     <form class="modal-form" data-form="task">
       <h2>添加任务</h2>
       <label>任务名称<input name="title" autocomplete="off" required /></label>
-      <label>备注<textarea name="note" rows="3"></textarea></label>
+      <label>备注<textarea name="note" rows="1"></textarea></label>
       <label>所属日期<input name="date" type="date" value="${state.selectedDate}" required /></label>
       <label>所属象限
         <select name="quadrant">
@@ -769,6 +775,11 @@ function bindEvents() {
   document.querySelectorAll('[data-view]').forEach((button) => {
     button.addEventListener('click', () => {
       state.activeView = button.dataset.view
+      if (button.dataset.view === 'quadrants') {
+        state.selectedDate = todayKey()
+        state.lastSeenDate = todayKey()
+        calendarCursor = new Date(`${state.selectedDate}T00:00:00`)
+      }
       profileOpen = false
       saveState()
       render()

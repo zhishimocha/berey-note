@@ -684,9 +684,10 @@ button:disabled {
 }
 
 .modal-form textarea {
-  min-height: 76px;
-  padding-top: 10px;
-  padding-bottom: 10px;
+  height: 42px;
+  min-height: 42px;
+  padding-top: 9px;
+  padding-bottom: 9px;
   max-width: 100%;
   resize: vertical;
 }

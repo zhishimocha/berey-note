@@ -2890,16 +2890,26 @@ body {
   height: clamp(62px, 18vw, 86px);
   border: 0;
   border-radius: 0;
-  background: url("./assets/achievement-cat-head.png") center / contain no-repeat;
+  background: linear-gradient(180deg, var(--cat-tint-top), var(--cat-tint-bottom));
   box-shadow: none;
+  filter: drop-shadow(0 8px 13px rgba(127, 23, 36, 0.08));
+  mask: url("./assets/achievement-cat-head.png") center / contain no-repeat;
+  -webkit-mask: url("./assets/achievement-cat-head.png") center / contain no-repeat;
+}
+
+.cat-today .cat-badge {
+  --cat-tint-top: #fff4f6;
+  --cat-tint-bottom: #f8dbe2;
 }
 
 .cat-total .cat-badge {
-  filter: hue-rotate(160deg) saturate(0.72) brightness(1.04);
+  --cat-tint-top: #f2faef;
+  --cat-tint-bottom: #d7efcf;
 }
 
 .cat-streak .cat-badge {
-  filter: hue-rotate(332deg) saturate(1.08) brightness(1.02);
+  --cat-tint-top: #eff8fb;
+  --cat-tint-bottom: #cfe8f2;
 }
 
 .cat-badge::before,

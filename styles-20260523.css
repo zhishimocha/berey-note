@@ -2618,8 +2618,24 @@ body {
     overflow: hidden;
     background:
       url("./assets/top-border.png") top center / 100% auto no-repeat,
-      url("./assets/bottom-border.png") bottom center / 100% auto no-repeat,
       #fffaf6;
+  }
+
+  .card-shell::before {
+    position: fixed;
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1;
+    display: block;
+    height: calc(100vw * 257 / 941);
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    pointer-events: none;
+    background: url("./assets/bottom-border-mobile.png") bottom center / 100% auto no-repeat;
+    content: "";
   }
 
   .card-stage {
@@ -2674,25 +2690,9 @@ body {
     margin-bottom: 30px;
   }
 }
-/* v23: hide the top seam baked into the mobile bottom trim asset */
+/* v23: crop the top seam baked into the mobile bottom trim asset */
 @media (max-width: 430px) {
   .card-shell::after {
-    position: fixed;
-    left: 50%;
-    bottom: calc((100vw * 257 / 941) - 10px);
-    z-index: 2;
-    display: block;
-    width: min(86vw, 390px);
-    height: 14px;
-    border-radius: 999px;
-    pointer-events: none;
-    background: linear-gradient(
-      90deg,
-      rgba(255, 250, 246, 0),
-      #fffaf6 10%,
-      #fffaf6 90%,
-      rgba(255, 250, 246, 0)
-    );
-    transform: translateX(-50%);
+    display: none;
   }
 }

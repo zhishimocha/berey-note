@@ -2779,3 +2779,106 @@ body {
     min-width: 260px;
   }
 }
+
+/* v25: cat achievement badges and embedded task date picker */
+.date-pill {
+  cursor: default;
+}
+
+.achievement-stats article.cat-stat {
+  min-height: 122px;
+  align-content: center;
+  justify-items: center;
+  gap: 8px;
+}
+
+.cat-badge {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: clamp(58px, 18vw, 82px);
+  aspect-ratio: 1;
+  border: 2px solid rgba(127, 23, 36, 0.16);
+  border-radius: 48% 48% 46% 46%;
+  background:
+    radial-gradient(circle at 34% 64%, rgba(207, 82, 97, 0.2) 0 5px, transparent 6px),
+    radial-gradient(circle at 66% 64%, rgba(207, 82, 97, 0.2) 0 5px, transparent 6px),
+    #fff8f4;
+  box-shadow:
+    inset 0 0 0 5px rgba(255, 255, 255, 0.72),
+    0 10px 18px rgba(127, 23, 36, 0.1);
+}
+
+.cat-badge::before,
+.cat-badge::after {
+  position: absolute;
+  top: -8px;
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(127, 23, 36, 0.16);
+  background: inherit;
+  content: "";
+  transform: rotate(45deg);
+}
+
+.cat-badge::before {
+  left: 8px;
+  border-radius: 7px 2px 8px 2px;
+}
+
+.cat-badge::after {
+  right: 8px;
+  border-radius: 2px 7px 2px 8px;
+}
+
+.cat-badge strong {
+  position: relative;
+  z-index: 1;
+  color: var(--berry-dark);
+  font-size: clamp(1.2rem, 5vw, 1.9rem);
+  line-height: 1;
+}
+
+.cat-total .cat-badge {
+  background:
+    radial-gradient(circle at 34% 64%, rgba(207, 82, 97, 0.18) 0 5px, transparent 6px),
+    radial-gradient(circle at 66% 64%, rgba(207, 82, 97, 0.18) 0 5px, transparent 6px),
+    #e9f5f8;
+}
+
+.cat-streak .cat-badge {
+  background:
+    radial-gradient(circle at 34% 64%, rgba(207, 82, 97, 0.22) 0 5px, transparent 6px),
+    radial-gradient(circle at 66% 64%, rgba(207, 82, 97, 0.22) 0 5px, transparent 6px),
+    #fff0f2;
+}
+
+.pretty-date-field button {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(127, 23, 36, 0.18);
+  border-radius: 14px;
+  background: #fffaf7;
+  color: var(--ink);
+  font-weight: 900;
+  text-align: left;
+  padding: 0 12px;
+}
+
+.task-date-picker {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid rgba(144, 48, 55, 0.14);
+  border-radius: 18px;
+  background: #fffdf9;
+  box-shadow: var(--small-shadow);
+}
+
+.compact-calendar-head {
+  grid-template-columns: 36px 1fr 36px;
+}
+
+.compact-calendar-head strong {
+  color: var(--berry-dark);
+}

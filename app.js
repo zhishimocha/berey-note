@@ -145,6 +145,7 @@ let pressTimer = null
 let touchStart = null
 let profileOpen = false
 let calendarYearOpen = false
+let taskDatePicker = null
 let lastSwipeAt = 0
 let isDeleteMode = false
 
@@ -420,7 +421,7 @@ function renderMainScreen() {
     <main class="shell app-shell">
       <header class="main-header">
         ${state.activeView === 'quadrants'
-          ? `<button class="date-pill" data-action="calendar">${shortDate(state.selectedDate)}</button>`
+          ? `<span class="date-pill">${shortDate(todayKey())}</span>`
           : '<div class="header-spacer"></div>'}
         <div class="points-center">
           <span>积分</span>
@@ -566,9 +567,9 @@ function renderAchievements() {
   return `
     <section class="achievement-grid">
       <div class="achievement-stats">
-        <article><span>今日完成</span><strong>${state.completions[todayKey()] || 0}</strong></article>
-        <article><span>累计完成</span><strong>${state.completedTotal}</strong></article>
-        <article><span>连续完成</span><strong>${streakDays()}</strong></article>
+        <article class="cat-stat cat-today"><div class="cat-badge"><strong>${state.completions[todayKey()] || 0}</strong></div><span>今日完成</span></article>
+        <article class="cat-stat cat-total"><div class="cat-badge"><strong>${state.completedTotal}</strong></div><span>累计完成</span></article>
+        <article class="cat-stat cat-streak"><div class="cat-badge"><strong>${streakDays()}</strong></div><span>连续完成</span></article>
       </div>
       <article class="heatmap-card">
         <div class="heatmap-title">
@@ -678,7 +679,8 @@ function openAddModal() {
       <h2>添加任务</h2>
       <label>任务名称<input name="title" autocomplete="off" required /></label>
       <label>备注<textarea name="note" rows="1"></textarea></label>
-      <label>所属日期<input name="date" type="date" value="${state.selectedDate}" required /></label>
+      ${renderTaskDateField('所属日期', 'date', state.selectedDate)}
+      ${renderTaskDateField('做到哪天', 'endDate', state.selectedDate)}
       <label>所属象限
         <select name="quadrant">
           ${Object.entries(quadrantNames).map(([id, name]) => `<option value="${id}">${name}</option>`).join('')}
@@ -687,6 +689,85 @@ function openAddModal() {
       <button type="submit">保存</button>
     </form>
   `)
+}
+
+function renderTaskDateField(label, name, value) {
+  return `
+    <label class="pretty-date-field">${label}
+      <input name="${name}" type="hidden" value="${value}" required />
+      <button type="button" data-date-picker="${name}">${shortDate(value)}</button>
+    </label>
+  `
+}
+
+function openTaskDatePicker(targetName) {
+  const input = document.querySelector(`input[name="${targetName}"]`)
+  if (!input) return
+  const value = input.value || state.selectedDate
+  taskDatePicker = {
+    targetName,
+    cursor: new Date(`${value}T00:00:00`),
+  }
+  renderTaskDatePicker()
+}
+
+function renderTaskDatePicker() {
+  const form = document.querySelector('[data-form="task"]')
+  if (!form || !taskDatePicker) return
+  form.querySelector('.task-date-picker')?.remove()
+
+  const input = form.querySelector(`input[name="${taskDatePicker.targetName}"]`)
+  const picked = input?.value || state.selectedDate
+  const year = taskDatePicker.cursor.getFullYear()
+  const month = taskDatePicker.cursor.getMonth()
+  const first = new Date(year, month, 1)
+  const startOffset = first.getDay()
+  const days = new Date(year, month + 1, 0).getDate()
+  const cells = [
+    ...Array.from({ length: startOffset }, () => ''),
+    ...Array.from({ length: days }, (_, index) => index + 1),
+  ]
+
+  const picker = document.createElement('div')
+  picker.className = 'task-date-picker'
+  picker.innerHTML = `
+    <div class="calendar-head compact-calendar-head">
+      <button type="button" data-picker-month="-1">‹</button>
+      <strong>${year}年${month + 1}月</strong>
+      <button type="button" data-picker-month="1">›</button>
+    </div>
+    <div class="week-row">${['日', '一', '二', '三', '四', '五', '六'].map((day) => `<span>${day}</span>`).join('')}</div>
+    <div class="day-grid">
+      ${cells.map((day) => {
+        if (!day) return '<span></span>'
+        const key = toDateKey(new Date(year, month, day))
+        return `<button type="button" class="${key === picked ? 'picked' : ''}" data-picker-date="${key}">${day}</button>`
+      }).join('')}
+    </div>
+  `
+
+  const target = form.querySelector(`[data-date-picker="${taskDatePicker.targetName}"]`)?.closest('label')
+  target?.after(picker)
+  bindTaskDatePickerEvents()
+}
+
+function bindTaskDatePickerEvents() {
+  document.querySelectorAll('[data-picker-month]').forEach((button) => {
+    button.addEventListener('click', () => {
+      taskDatePicker.cursor.setMonth(taskDatePicker.cursor.getMonth() + Number(button.dataset.pickerMonth))
+      renderTaskDatePicker()
+    })
+  })
+  document.querySelectorAll('[data-picker-date]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const input = document.querySelector(`input[name="${taskDatePicker.targetName}"]`)
+      const trigger = document.querySelector(`[data-date-picker="${taskDatePicker.targetName}"]`)
+      if (input) input.value = button.dataset.pickerDate
+      if (trigger) trigger.textContent = shortDate(button.dataset.pickerDate)
+      document.querySelector('.task-date-picker')?.remove()
+      taskDatePicker = null
+    })
+  })
 }
 
 function openStartupPrompt() {
@@ -721,17 +802,19 @@ function enhanceTaskModal() {
   const form = document.querySelector('[data-form="task"]')
   const dateInput = form?.querySelector('input[name="date"]')
   const select = form?.querySelector('select[name="quadrant"]')
-  if (!form || !dateInput || form.querySelector('input[name="endDate"]')) return
+  if (!form || !dateInput || !select) return
 
-  const endLabel = document.createElement('label')
-  endLabel.textContent = '做到哪天'
-  const endInput = document.createElement('input')
-  endInput.name = 'endDate'
-  endInput.type = 'date'
-  endInput.value = dateInput.value || state.selectedDate
-  endInput.required = true
-  endLabel.append(endInput)
-  dateInput.closest('label')?.after(endLabel)
+  if (!form.querySelector('input[name="endDate"]')) {
+    const endLabel = document.createElement('label')
+    endLabel.textContent = '做到哪天'
+    const endInput = document.createElement('input')
+    endInput.name = 'endDate'
+    endInput.type = 'date'
+    endInput.value = dateInput.value || state.selectedDate
+    endInput.required = true
+    endLabel.append(endInput)
+    dateInput.closest('label')?.after(endLabel)
+  }
 
   if (select && !select.querySelector(`option[value="${MAJOR_EVENT}"]`)) {
     const option = document.createElement('option')
@@ -844,6 +927,9 @@ function bindModalEvents() {
     permanentToggle.addEventListener('change', syncPermanent)
     syncPermanent()
   }
+  document.querySelectorAll('[data-date-picker]').forEach((button) => {
+    button.addEventListener('click', () => openTaskDatePicker(button.dataset.datePicker))
+  })
   document.querySelectorAll('[data-form]').forEach((form) => {
     form.addEventListener('submit', (event) => {
       event.preventDefault()

@@ -3336,3 +3336,34 @@ body:has(.timer-shell) {
     grid-template-columns: 62px minmax(0, 1fr) 44px;
   }
 }
+
+/* v31: plain countdown numbers and a single-outline timer title */
+.timer-title-card {
+  border: 2px solid #b1dbea;
+  background: #fffdf9;
+  box-shadow: 0 8px 20px rgba(117, 161, 184, 0.12);
+}
+
+.timer-title-card::before {
+  display: none;
+}
+
+.countdown-picker select {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.countdown-picker select:focus {
+  outline: none;
+}
+
+.countdown-picker option {
+  background: transparent;
+  color: var(--berry-dark);
+}
+
+.countdown-picker option:checked {
+  background-color: transparent !important;
+  background-image: linear-gradient(transparent, transparent) !important;
+  color: var(--berry-dark);
+}

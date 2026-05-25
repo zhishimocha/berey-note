@@ -86,6 +86,7 @@ const timerModes = [
 const defaultState = () => ({
   selectedDate: todayKey(),
   lastSeenDate: todayKey(),
+  rolloverReviewedDate: '',
   activeView: 'quadrants',
   points: 15,
   avatarImage: '',
@@ -149,6 +150,7 @@ let calendarYearOpen = false
 let taskDatePicker = null
 let lastSwipeAt = 0
 let isDeleteMode = false
+let rolloverPromptOpen = false
 
 function loadState() {
   try {
@@ -240,30 +242,21 @@ function addTask(form) {
   const customPoints = category === MAJOR_EVENT ? clampPoints(data.get('customPoints'), 30) : null
   const startDate = data.get('date')
   const endDate = data.get('endDate') || startDate
-  const start = new Date(`${startDate}T00:00:00`)
-  const end = new Date(`${endDate}T00:00:00`)
-  const days = []
-  const cursor = new Date(start)
-
-  while (cursor <= end && days.length < 45) {
-    days.push(toDateKey(cursor))
-    cursor.setDate(cursor.getDate() + 1)
-  }
-
-  const createdAt = Date.now()
-  const tasks = (days.length ? days : [startDate]).map((date, index) => ({
+  const normalizedEndDate = endDate >= startDate ? endDate : startDate
+  const task = {
     id: crypto.randomUUID(),
     title,
     note,
-    date,
+    date: startDate,
+    endDate: normalizedEndDate,
     quadrant: category,
     points: customPoints,
     done: false,
-    createdAt: createdAt + index,
-  }))
+    createdAt: Date.now(),
+  }
 
-  state.tasks.push(...tasks)
-  state.lastAction = { type: 'addTask', taskIds: tasks.map((task) => task.id) }
+  state.tasks.push(task)
+  state.lastAction = { type: 'addTask', taskIds: [task.id] }
   saveState()
   closeModal()
   render()
@@ -351,6 +344,89 @@ function deleteTask(taskId) {
   })
   saveState()
   render()
+}
+
+function pendingRolloverTasks() {
+  return state.tasks
+    .filter((task) => !task.done && task.date < todayKey())
+    .sort((a, b) => a.date.localeCompare(b.date) || a.createdAt - b.createdAt)
+}
+
+function rolloverDeadline(task) {
+  return task.endDate || task.date
+}
+
+function openRolloverPrompt() {
+  const tasks = pendingRolloverTasks()
+  if (!tasks.length) {
+    markRolloverReviewed()
+    return
+  }
+  rolloverPromptOpen = true
+  openModal(`
+    <div class="modal-form rollover-panel">
+      <h2>未完成任务要顺延吗？</h2>
+      <p>昨天之前留下了 ${tasks.length} 件事。选一个新日期继续，或删掉不再安排的任务。</p>
+      <div class="rollover-list">
+        ${tasks.map((task) => {
+          const deadline = rolloverDeadline(task)
+          const deadlineCopy = deadline >= todayKey() ? `有效期至 ${shortDate(deadline)}` : `已于 ${shortDate(deadline)} 过期`
+          return `
+            <article class="rollover-task">
+              <strong>${escapeHtml(task.title)}</strong>
+              <small>原定 ${shortDate(task.date)} · ${deadlineCopy}</small>
+              <label>顺延到
+                <input type="date" min="${todayKey()}" value="${todayKey()}" data-rollover-date="${task.id}" />
+              </label>
+              <div class="rollover-actions">
+                <button type="button" data-rollover-move="${task.id}">顺延</button>
+                <button type="button" class="ghost-danger" data-rollover-delete="${task.id}">删除</button>
+              </div>
+            </article>
+          `
+        }).join('')}
+      </div>
+      <button type="button" class="rollover-later" data-action="rollover-dismiss">暂不处理，明天再问</button>
+    </div>
+  `)
+}
+
+function maybeOpenRolloverPrompt() {
+  if (state.rolloverReviewedDate === todayKey() || !pendingRolloverTasks().length) return
+  openRolloverPrompt()
+}
+
+function markRolloverReviewed() {
+  rolloverPromptOpen = false
+  state.rolloverReviewedDate = todayKey()
+  saveState()
+  closeModal()
+}
+
+function moveRolloverTask(taskId) {
+  const task = state.tasks.find((item) => item.id === taskId)
+  const targetDate = document.querySelector(`[data-rollover-date="${taskId}"]`)?.value
+  if (!task || !targetDate || targetDate < todayKey()) return toast('请选择今天或之后的日期')
+  task.date = targetDate
+  if (!task.endDate || targetDate > task.endDate) task.endDate = targetDate
+  saveState()
+  refreshRolloverPrompt('任务已顺延')
+}
+
+function discardRolloverTask(taskId) {
+  state.tasks = state.tasks.filter((task) => task.id !== taskId)
+  Object.keys(state.tomorrowFirst).forEach((key) => {
+    if (state.tomorrowFirst[key] === taskId) delete state.tomorrowFirst[key]
+  })
+  saveState()
+  refreshRolloverPrompt('任务已删除')
+}
+
+function refreshRolloverPrompt(message) {
+  render()
+  if (pendingRolloverTasks().length) openRolloverPrompt()
+  else markRolloverReviewed()
+  toast(message)
 }
 
 function deleteHabit(id) {
@@ -547,12 +623,13 @@ function renderQuadrants() {
 }
 
 function renderSmallTask(task) {
+  const deadline = task.endDate && task.endDate !== task.date ? ` · 截止 ${shortDate(task.endDate)}` : ''
   return `
     <article class="mini-task ${task.done ? 'done' : ''} ${isDeleteMode ? 'is-deleting' : ''}">
       <button class="mini-task-copy" ${task.done ? '' : `data-task-id="${task.id}"`}>
         <span>${escapeHtml(task.title)}</span>
         ${task.note ? `<em>${escapeHtml(task.note)}</em>` : ''}
-        <small>${taskCategoryName(task)} · +${taskScore(task)}分</small>
+        <small>${taskCategoryName(task)} · +${taskScore(task)}分${deadline}</small>
       </button>
       ${isDeleteMode ? '' : `<button class="check-round task-check ${task.done ? 'done' : ''}" data-complete-task="${task.id}" aria-label="${task.done ? '已完成' : '标记完成'}" ${task.done ? 'disabled' : ''}></button>`}
       ${isDeleteMode ? `<i class="delete-dot" data-delete-task="${task.id}">×</i>` : ''}
@@ -1040,6 +1117,12 @@ function bindModalEvents() {
   document.querySelector('[data-import-state]')?.addEventListener('change', (event) => {
     importState(event.currentTarget.files?.[0])
   })
+  document.querySelectorAll('[data-rollover-move]').forEach((button) => {
+    button.addEventListener('click', () => moveRolloverTask(button.dataset.rolloverMove))
+  })
+  document.querySelectorAll('[data-rollover-delete]').forEach((button) => {
+    button.addEventListener('click', () => discardRolloverTask(button.dataset.rolloverDelete))
+  })
   const permanentToggle = document.querySelector('[data-habit-permanent]')
   const habitEndInput = document.querySelector('[data-habit-end]')
   if (permanentToggle && habitEndInput) {
@@ -1122,7 +1205,11 @@ function handleAction(event) {
   if (action === 'open-sync-modal') openSyncModal()
   if (action === 'undo') undoLastAction()
   if (action === 'toggle-delete') isDeleteMode = !isDeleteMode
-  if (action === 'close-modal') closeModal()
+  if (action === 'close-modal') {
+    if (rolloverPromptOpen) markRolloverReviewed()
+    else closeModal()
+  }
+  if (action === 'rollover-dismiss') markRolloverReviewed()
   if (action === 'toggle-timer') toggleTimer()
   if (action === 'pause-timer') pauseTimer()
   if (action === 'continue-timer') {
@@ -1135,7 +1222,7 @@ function handleAction(event) {
 }
 
 function renderIfNeeded(action) {
-  const noRender = ['add', 'calendar', 'close-modal', 'continue-timer', 'open-profile-modal', 'open-sync-modal']
+  const noRender = ['add', 'calendar', 'close-modal', 'continue-timer', 'open-profile-modal', 'open-sync-modal', 'rollover-dismiss']
   if (!noRender.includes(action)) render()
 }
 
@@ -1343,3 +1430,4 @@ function toast(message) {
 }
 
 render()
+maybeOpenRolloverPrompt()

@@ -2883,38 +2883,24 @@ body {
   box-shadow: none;
 }
 
-.cat-badge,
-.cat-total .cat-badge,
-.cat-streak .cat-badge {
-  width: clamp(74px, 21vw, 104px);
-  height: clamp(62px, 18vw, 86px);
+.cat-badge {
+  width: clamp(78px, 25vw, 112px);
+  height: clamp(78px, 25vw, 112px);
   border: 0;
   border-radius: 0;
-  background: linear-gradient(180deg, var(--cat-tint-top), var(--cat-tint-bottom));
+  background: url("./assets/achievement-strawberry-badge.png") center / contain no-repeat;
   box-shadow: none;
-  filter: drop-shadow(0 8px 13px rgba(127, 23, 36, 0.08));
-  mask: url("./assets/achievement-cat-head.png") center / contain no-repeat;
-  -webkit-mask: url("./assets/achievement-cat-head.png") center / contain no-repeat;
-}
-
-.cat-today .cat-badge {
-  --cat-tint-top: #fff4f6;
-  --cat-tint-bottom: #f8dbe2;
-}
-
-.cat-total .cat-badge {
-  --cat-tint-top: #f2faef;
-  --cat-tint-bottom: #d7efcf;
-}
-
-.cat-streak .cat-badge {
-  --cat-tint-top: #eff8fb;
-  --cat-tint-bottom: #cfe8f2;
+  filter: drop-shadow(0 9px 12px rgba(164, 85, 95, 0.1));
 }
 
 .cat-badge::before,
 .cat-badge::after {
   display: none;
+}
+
+.cat-badge strong {
+  color: #a25361;
+  font-size: clamp(1.18rem, 5vw, 1.72rem);
 }
 
 .avatar-picker {

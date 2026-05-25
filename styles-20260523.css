@@ -3134,3 +3134,181 @@ body {
   background: #fff4f3;
   color: var(--berry-dark);
 }
+
+/* v29: compact timer viewport, clean rings, and wheel countdown picker */
+html:has(.timer-shell),
+body:has(.timer-shell) {
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.timer-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 100dvh;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: clamp(62px, 12vh, 94px);
+  padding-bottom: clamp(70px, 13vh, 108px);
+  overflow: hidden;
+}
+
+.timer-shell .topbar {
+  flex: none;
+  padding: 6px 16px 4px;
+}
+
+.timer-shell .mode-tabs {
+  flex: none;
+  padding: 8px 16px 5px;
+}
+
+.timer-shell .timer-center {
+  align-content: center;
+  flex: 1 1 auto;
+  gap: 10px;
+  min-height: 0;
+  padding: 4px 18px;
+}
+
+.timer-shell .timer-actions {
+  flex: none;
+  padding: 5px 18px 0;
+}
+
+.timer-orb {
+  display: grid;
+  place-items: center;
+  width: min(53vw, 238px);
+  border-radius: 50%;
+  background: radial-gradient(circle, #fffaf7 0 67%, #e4cfd3 68% 73%, #a9d4e6 74% 88%, transparent 89%);
+  box-shadow: 0 14px 32px rgba(117, 161, 184, 0.14);
+}
+
+.timer-orb::before,
+.timer-orb::after {
+  display: none;
+}
+
+.timer-orb-button {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+}
+
+.timer-orb span {
+  max-width: 64%;
+}
+
+.timer-center p {
+  padding: 6px 13px;
+  font-size: 0.86rem;
+}
+
+.timer-orb.has-picker {
+  width: min(88vw, 336px);
+  aspect-ratio: auto;
+  gap: 10px;
+  padding: 13px 12px 11px;
+  border: 1px solid rgba(117, 161, 184, 0.24);
+  border-radius: 22px;
+  background: rgba(255, 253, 249, 0.94);
+}
+
+.countdown-picker {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.countdown-picker::before {
+  position: absolute;
+  top: 35px;
+  right: 0;
+  left: 0;
+  height: 38px;
+  border-top: 1px solid rgba(117, 161, 184, 0.24);
+  border-bottom: 1px solid rgba(117, 161, 184, 0.24);
+  border-radius: 9px;
+  background: rgba(217, 239, 247, 0.28);
+  pointer-events: none;
+  content: "";
+}
+
+.countdown-picker label {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.timer-orb .countdown-picker span {
+  max-width: none;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1;
+}
+
+.countdown-picker select {
+  width: 100%;
+  height: 108px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--berry-dark);
+  font-size: 1.15rem;
+  font-weight: 900;
+  text-align: center;
+  scrollbar-width: none;
+}
+
+.countdown-picker select::-webkit-scrollbar {
+  display: none;
+}
+
+.countdown-picker option {
+  min-height: 36px;
+  padding: 7px 0;
+}
+
+.countdown-start {
+  min-height: 36px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--berry);
+  color: #fff;
+  font-weight: 900;
+}
+
+@media (max-width: 430px) {
+  .timer-shell {
+    background:
+      url("./assets/top-border.png") top center / 100% auto no-repeat,
+      url("./assets/bottom-border-mobile.png") bottom center / 100% auto no-repeat,
+      #fffaf6;
+  }
+
+  .timer-shell::before,
+  .timer-shell::after {
+    display: none;
+  }
+
+  .timer-orb {
+    width: min(57vw, 222px);
+  }
+}

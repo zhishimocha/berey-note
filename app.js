@@ -140,6 +140,7 @@ let timerMode = 'startup'
 let timerRunning = false
 let timerSeconds = 0
 let timerTarget = 300
+let countdownSelection = { hours: 0, minutes: 10, seconds: 0 }
 let timerInterval = null
 let startupPromptShown = false
 let calendarCursor = new Date(`${state.selectedDate}T00:00:00`)
@@ -161,6 +162,7 @@ function loadState() {
       ...defaults,
       ...stored,
       scoreRules: { ...defaults.scoreRules, ...(stored.scoreRules || {}) },
+      tasks: (stored.tasks || defaults.tasks).map(normalizeTask),
     }
     if (loaded.lastSeenDate !== todayKey()) {
       loaded.selectedDate = todayKey()
@@ -177,15 +179,36 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
 }
 
+function normalizeTask(task) {
+  if (task.endDate && task.endDate > task.date && task.done && !task.completedDates?.length) {
+    return { ...task, done: false, completedDates: [task.date] }
+  }
+  return { ...task, completedDates: task.completedDates || [] }
+}
+
+function isRangeTask(task) {
+  return Boolean(task.endDate && task.endDate > task.date)
+}
+
+function taskAppliesOnDate(task, date) {
+  if (isRangeTask(task)) return task.date <= date && date <= task.endDate
+  return task.date === date
+}
+
+function taskCompletedOnDate(task, date) {
+  if (isRangeTask(task)) return task.completedDates?.includes(date)
+  return task.done
+}
+
 function visibleTasks(date = state.selectedDate) {
   return state.tasks
-    .filter((task) => task.date === date && !task.done)
+    .filter((task) => taskAppliesOnDate(task, date) && !taskCompletedOnDate(task, date))
     .sort((a, b) => a.createdAt - b.createdAt)
 }
 
 function listedTasks(date = state.selectedDate) {
   return state.tasks
-    .filter((task) => task.date === date)
+    .filter((task) => taskAppliesOnDate(task, date) && !taskCompletedOnDate(task, date))
     .sort((a, b) => a.createdAt - b.createdAt)
 }
 
@@ -207,11 +230,12 @@ function currentCardTask() {
   return queue[cardIndex % Math.max(queue.length, 1)]
 }
 
-function completeTask(taskId) {
+function completeTask(taskId, completionDate = todayKey()) {
   const task = state.tasks.find((item) => item.id === taskId)
-  if (!task || task.done) return
+  if (!task || !taskAppliesOnDate(task, completionDate) || taskCompletedOnDate(task, completionDate)) return
   const earnedPoints = taskScore(task)
-  task.done = true
+  if (isRangeTask(task)) task.completedDates = [...(task.completedDates || []), completionDate]
+  else task.done = true
   state.points += earnedPoints
   state.completedTotal += 1
   state.completions[todayKey()] = (state.completions[todayKey()] || 0) + 1
@@ -252,6 +276,7 @@ function addTask(form) {
     quadrant: category,
     points: customPoints,
     done: false,
+    completedDates: [],
     createdAt: Date.now(),
   }
 
@@ -348,7 +373,7 @@ function deleteTask(taskId) {
 
 function pendingRolloverTasks() {
   return state.tasks
-    .filter((task) => !task.done && task.date < todayKey())
+    .filter((task) => rolloverDeadline(task) < todayKey() && !taskCompletedOnDate(task, rolloverDeadline(task)))
     .sort((a, b) => a.date.localeCompare(b.date) || a.createdAt - b.createdAt)
 }
 
@@ -472,6 +497,7 @@ function renderCardScreen() {
 function renderTimerScreen() {
   const task = state.tasks.find((item) => item.id === activeTimerTaskId) || currentCardTask()
   const display = formatTimer(timerSeconds, timerMode)
+  const showCountdownPicker = timerMode === 'countdown' && !timerRunning
   return `
     <main class="shell timer-shell">
       <header class="topbar">
@@ -485,9 +511,11 @@ function renderTimerScreen() {
         ${timerModes.map((mode) => `<button class="${mode.id === timerMode ? 'active' : ''}" data-timer-mode="${mode.id}">${mode.label}</button>`).join('')}
       </nav>
       <section class="timer-center ${timerMode}">
-        <button class="timer-orb" data-action="toggle-timer">
-          <span>${timerRunning ? display : timerMode === 'startup' ? '要不要来 5 分钟试试？' : display}</span>
-        </button>
+        <div class="timer-orb ${showCountdownPicker ? 'has-picker' : ''}">
+          ${showCountdownPicker
+            ? `${renderCountdownPicker()}<button class="countdown-start" data-action="toggle-timer">开始倒计时</button>`
+            : `<button class="timer-orb-button" data-action="toggle-timer"><span class="timer-display">${timerRunning ? display : timerMode === 'startup' ? '要不要来 5 分钟试试？' : display}</span></button>`}
+        </div>
         <p>${timerHint()}</p>
       </section>
       <div class="timer-actions">
@@ -496,6 +524,26 @@ function renderTimerScreen() {
         <button data-action="rest-timer">休息</button>
       </div>
     </main>
+  `
+}
+
+function renderCountdownPicker() {
+  const units = [
+    ['hours', '时', 23],
+    ['minutes', '分', 59],
+    ['seconds', '秒', 59],
+  ]
+  return `
+    <div class="countdown-picker" aria-label="倒计时时间">
+      ${units.map(([unit, label, max]) => `
+        <label>
+          <select data-countdown-unit="${unit}" aria-label="${label}" size="3">
+            ${Array.from({ length: max + 1 }, (_, value) => `<option value="${value}" ${countdownSelection[unit] === value ? 'selected' : ''}>${String(value).padStart(2, '0')}</option>`).join('')}
+          </select>
+          <span>${label}</span>
+        </label>
+      `).join('')}
+    </div>
   `
 }
 
@@ -625,13 +673,13 @@ function renderQuadrants() {
 function renderSmallTask(task) {
   const deadline = task.endDate && task.endDate !== task.date ? ` · 截止 ${shortDate(task.endDate)}` : ''
   return `
-    <article class="mini-task ${task.done ? 'done' : ''} ${isDeleteMode ? 'is-deleting' : ''}">
-      <button class="mini-task-copy" ${task.done ? '' : `data-task-id="${task.id}"`}>
+    <article class="mini-task ${isDeleteMode ? 'is-deleting' : ''}">
+      <button class="mini-task-copy" data-task-id="${task.id}">
         <span>${escapeHtml(task.title)}</span>
         ${task.note ? `<em>${escapeHtml(task.note)}</em>` : ''}
         <small>${taskCategoryName(task)} · +${taskScore(task)}分${deadline}</small>
       </button>
-      ${isDeleteMode ? '' : `<button class="check-round task-check ${task.done ? 'done' : ''}" data-complete-task="${task.id}" aria-label="${task.done ? '已完成' : '标记完成'}" ${task.done ? 'disabled' : ''}></button>`}
+      ${isDeleteMode ? '' : `<button class="check-round task-check" data-complete-task="${task.id}" aria-label="标记完成"></button>`}
       ${isDeleteMode ? `<i class="delete-dot" data-delete-task="${task.id}">×</i>` : ''}
     </article>
   `
@@ -1021,6 +1069,7 @@ function importState(file) {
         ...defaults,
         ...imported,
         scoreRules: { ...defaults.scoreRules, ...(imported.scoreRules || {}) },
+        tasks: (imported.tasks || defaults.tasks).map(normalizeTask),
       }
       calendarCursor = new Date(`${state.selectedDate}T00:00:00`)
       saveState()
@@ -1061,11 +1110,14 @@ function bindEvents() {
   document.querySelectorAll('[data-timer-mode]').forEach((button) => {
     button.addEventListener('click', () => switchTimerMode(button.dataset.timerMode))
   })
+  document.querySelectorAll('[data-countdown-unit]').forEach((select) => {
+    select.addEventListener('change', () => setCountdownUnit(select.dataset.countdownUnit, select.value))
+  })
   document.querySelectorAll('[data-task-id]').forEach((button) => {
     bindLongPress(button, () => setTomorrowFirst(button.dataset.taskId))
   })
   document.querySelectorAll('[data-complete-task]').forEach((button) => {
-    button.addEventListener('click', () => completeTask(button.dataset.completeTask))
+    button.addEventListener('click', () => completeTask(button.dataset.completeTask, state.selectedDate))
   })
   document.querySelectorAll('[data-habit-id]').forEach((button) => {
     button.addEventListener('click', () => checkHabit(button.dataset.habitId))
@@ -1260,14 +1312,35 @@ function switchTimerMode(mode, shouldRender = true) {
   timerRunning = false
   startupPromptShown = false
   clearInterval(timerInterval)
-  if (mode === 'countdown') timerSeconds = 600
+  if (mode === 'countdown') timerSeconds = countdownSeconds()
   else if (mode === 'pomodoro') timerSeconds = 1500
   else timerSeconds = 0
-  timerTarget = mode === 'pomodoro' ? 1500 : mode === 'countdown' ? 600 : 300
+  timerTarget = mode === 'pomodoro' ? 1500 : mode === 'countdown' ? timerSeconds : 300
   if (shouldRender) render()
 }
 
+function countdownSeconds() {
+  return countdownSelection.hours * 3600 + countdownSelection.minutes * 60 + countdownSelection.seconds
+}
+
+function setCountdownUnit(unit, value) {
+  if (!(unit in countdownSelection)) return
+  countdownSelection[unit] = Math.max(0, Number(value) || 0)
+  timerSeconds = countdownSeconds()
+  timerTarget = timerSeconds
+  render()
+}
+
+function syncCountdownSelection(seconds) {
+  countdownSelection = {
+    hours: Math.floor(seconds / 3600),
+    minutes: Math.floor((seconds % 3600) / 60),
+    seconds: seconds % 60,
+  }
+}
+
 function toggleTimer() {
+  if (timerMode === 'countdown' && !timerRunning && timerSeconds === 0) return toast('请先选择倒计时时间')
   timerRunning ? pauseTimer() : startTimer()
 }
 
@@ -1277,11 +1350,14 @@ function startTimer() {
   timerInterval = setInterval(() => {
     if (timerMode === 'countdown' || timerMode === 'pomodoro') {
       timerSeconds = Math.max(0, timerSeconds - 1)
-      if (timerSeconds === 0) pauseTimer()
+      if (timerSeconds === 0) {
+        pauseTimer()
+        render()
+      }
     } else {
       timerSeconds += 1
     }
-    const display = document.querySelector('.timer-orb span')
+    const display = document.querySelector('.timer-display')
     if (display) display.textContent = formatTimer(timerSeconds, timerMode)
   }, 1000)
 }
@@ -1289,6 +1365,7 @@ function startTimer() {
 function pauseTimer() {
   timerRunning = false
   clearInterval(timerInterval)
+  if (timerMode === 'countdown') syncCountdownSelection(timerSeconds)
   closeModal()
 }
 
@@ -1303,6 +1380,7 @@ function restTimer() {
   pauseTimer()
   closeModal()
   timerSeconds = 0
+  if (timerMode === 'countdown') syncCountdownSelection(0)
 }
 
 function bindSwipe(element) {
@@ -1383,6 +1461,12 @@ window.addEventListener('pointerdown', () => {
 
 function formatTimer(seconds, mode) {
   const value = Math.max(0, seconds)
+  if (mode === 'countdown') {
+    const hours = Math.floor(value / 3600)
+    const minutes = Math.floor((value % 3600) / 60)
+    const rest = value % 60
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`
+  }
   const minutes = Math.floor(value / 60)
   const rest = value % 60
   return `${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`

@@ -537,9 +537,11 @@ function renderCountdownPicker() {
     <div class="countdown-picker" aria-label="倒计时时间">
       ${units.map(([unit, label, max]) => `
         <label>
-          <select data-countdown-unit="${unit}" aria-label="${label}" size="3">
-            ${Array.from({ length: max + 1 }, (_, value) => `<option value="${value}" ${countdownSelection[unit] === value ? 'selected' : ''}>${String(value).padStart(2, '0')}</option>`).join('')}
-          </select>
+          <div class="countdown-wheel" data-countdown-wheel="${unit}" data-max="${max}" role="listbox" aria-label="${label}">
+            <i aria-hidden="true"></i>
+            ${Array.from({ length: max + 1 }, (_, value) => `<button type="button" role="option" class="${countdownSelection[unit] === value ? 'picked' : ''}" data-countdown-value="${value}" aria-selected="${countdownSelection[unit] === value}">${String(value).padStart(2, '0')}</button>`).join('')}
+            <i aria-hidden="true"></i>
+          </div>
           <span>${label}</span>
         </label>
       `).join('')}
@@ -1110,9 +1112,7 @@ function bindEvents() {
   document.querySelectorAll('[data-timer-mode]').forEach((button) => {
     button.addEventListener('click', () => switchTimerMode(button.dataset.timerMode))
   })
-  document.querySelectorAll('[data-countdown-unit]').forEach((select) => {
-    select.addEventListener('change', () => setCountdownUnit(select.dataset.countdownUnit, select.value))
-  })
+  bindCountdownPicker()
   document.querySelectorAll('[data-task-id]').forEach((button) => {
     bindLongPress(button, () => setTomorrowFirst(button.dataset.taskId))
   })
@@ -1328,7 +1328,40 @@ function setCountdownUnit(unit, value) {
   countdownSelection[unit] = Math.max(0, Number(value) || 0)
   timerSeconds = countdownSeconds()
   timerTarget = timerSeconds
-  render()
+}
+
+function bindCountdownPicker() {
+  document.querySelectorAll('[data-countdown-wheel]').forEach((wheel) => {
+    const unit = wheel.dataset.countdownWheel
+    const max = Number(wheel.dataset.max)
+    const itemHeight = 40
+    let settleTimer = null
+    const pickValue = (value) => {
+      const picked = Math.max(0, Math.min(max, Number(value) || 0))
+      setCountdownUnit(unit, picked)
+      wheel.querySelectorAll('[data-countdown-value]').forEach((button) => {
+        const selected = Number(button.dataset.countdownValue) === picked
+        button.classList.toggle('picked', selected)
+        button.setAttribute('aria-selected', String(selected))
+      })
+    }
+    wheel.scrollTop = countdownSelection[unit] * itemHeight
+    wheel.addEventListener('scroll', () => {
+      clearTimeout(settleTimer)
+      settleTimer = setTimeout(() => {
+        const picked = Math.round(wheel.scrollTop / itemHeight)
+        pickValue(picked)
+        wheel.scrollTo({ top: picked * itemHeight, behavior: 'smooth' })
+      }, 90)
+    })
+    wheel.querySelectorAll('[data-countdown-value]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const picked = Number(button.dataset.countdownValue)
+        pickValue(picked)
+        wheel.scrollTo({ top: picked * itemHeight, behavior: 'smooth' })
+      })
+    })
+  })
 }
 
 function syncCountdownSelection(seconds) {

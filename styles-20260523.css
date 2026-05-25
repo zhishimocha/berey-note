@@ -3167,15 +3167,18 @@ body:has(.timer-shell) {
 
 .timer-shell .timer-center {
   align-content: center;
-  flex: 1 1 auto;
+  flex: none;
   gap: 10px;
   min-height: 0;
+  margin-top: auto;
   padding: 4px 18px;
 }
 
 .timer-shell .timer-actions {
   flex: none;
-  padding: 5px 18px 0;
+  margin-top: clamp(14px, 2.5vh, 22px);
+  margin-bottom: auto;
+  padding: 0 18px;
 }
 
 .timer-orb {
@@ -3232,10 +3235,10 @@ body:has(.timer-shell) {
 
 .countdown-picker::before {
   position: absolute;
-  top: 35px;
+  top: 40px;
   right: 0;
   left: 0;
-  height: 38px;
+  height: 40px;
   border-top: 1px solid rgba(117, 161, 184, 0.24);
   border-bottom: 1px solid rgba(117, 161, 184, 0.24);
   border-radius: 9px;
@@ -3263,9 +3266,11 @@ body:has(.timer-shell) {
   line-height: 1;
 }
 
-.countdown-picker select {
+.countdown-wheel {
+  position: relative;
   width: 100%;
-  height: 108px;
+  height: 120px;
+  overflow-y: auto;
   padding: 0;
   border: 0;
   background: transparent;
@@ -3273,16 +3278,39 @@ body:has(.timer-shell) {
   font-size: 1.15rem;
   font-weight: 900;
   text-align: center;
+  overscroll-behavior: contain;
+  scroll-snap-type: y mandatory;
   scrollbar-width: none;
+  touch-action: pan-y;
 }
 
-.countdown-picker select::-webkit-scrollbar {
+.countdown-wheel::-webkit-scrollbar {
   display: none;
 }
 
-.countdown-picker option {
-  min-height: 36px;
-  padding: 7px 0;
+.countdown-wheel i {
+  display: block;
+  height: 40px;
+  pointer-events: none;
+}
+
+.countdown-wheel button {
+  display: block;
+  width: 100%;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--berry-dark);
+  font-size: 1.15rem;
+  font-weight: 900;
+  line-height: 40px;
+  scroll-snap-align: center;
+}
+
+.countdown-wheel button.picked {
+  background: transparent;
+  color: var(--berry-dark);
 }
 
 .countdown-start {
@@ -3301,7 +3329,7 @@ body:has(.timer-shell) {
     background:
       url("./assets/top-border.png") top center / 100% auto no-repeat,
       url("./assets/bottom-border-mobile.png") bottom center / 100% auto no-repeat,
-      #fffaf6;
+      #fff8f2;
   }
 
   .timer-shell::before,
@@ -3340,7 +3368,7 @@ body:has(.timer-shell) {
 /* v31: plain countdown numbers and a single-outline timer title */
 .timer-title-card {
   border: 2px solid #b1dbea;
-  background: #fffdf9;
+  background: #fff8f2;
   box-shadow: 0 8px 20px rgba(117, 161, 184, 0.12);
 }
 
@@ -3348,22 +3376,19 @@ body:has(.timer-shell) {
   display: none;
 }
 
-.countdown-picker select {
-  appearance: none;
-  -webkit-appearance: none;
+/* v32: warm timer canvas and centered custom wheel selection slot */
+.timer-shell,
+.timer-shell .soft-icon,
+.timer-shell .mode-tabs button:not(.active),
+.timer-shell .timer-actions button,
+.timer-shell .timer-center p {
+  background-color: #fff8f2;
 }
 
-.countdown-picker select:focus {
-  outline: none;
+.timer-shell .timer-orb {
+  background: radial-gradient(circle closest-side, #fff8f2 0 72%, #b1dbea 73% 89%, transparent 90%);
 }
 
-.countdown-picker option {
-  background: transparent;
-  color: var(--berry-dark);
-}
-
-.countdown-picker option:checked {
-  background-color: transparent !important;
-  background-image: linear-gradient(transparent, transparent) !important;
-  color: var(--berry-dark);
+.timer-orb.has-picker {
+  background: #fff8f2;
 }

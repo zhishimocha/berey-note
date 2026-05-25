@@ -2839,22 +2839,6 @@ body {
   line-height: 1;
 }
 
-.cat-total .cat-badge {
-  --cat-face: #e9f5f8;
-  background:
-    radial-gradient(circle at 34% 64%, rgba(207, 82, 97, 0.18) 0 5px, transparent 6px),
-    radial-gradient(circle at 66% 64%, rgba(207, 82, 97, 0.18) 0 5px, transparent 6px),
-    var(--cat-face);
-}
-
-.cat-streak .cat-badge {
-  --cat-face: #fff0f2;
-  background:
-    radial-gradient(circle at 34% 64%, rgba(207, 82, 97, 0.22) 0 5px, transparent 6px),
-    radial-gradient(circle at 66% 64%, rgba(207, 82, 97, 0.22) 0 5px, transparent 6px),
-    var(--cat-face);
-}
-
 /* v26: user avatar import/export and source-image cat achievement badges */
 .avatar-button {
   overflow: hidden;

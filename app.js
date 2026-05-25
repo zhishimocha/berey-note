@@ -501,11 +501,11 @@ function renderTimerScreen() {
   return `
     <main class="shell timer-shell">
       <header class="topbar">
-        <button class="soft-icon" data-action="card">‹</button>
+        <strong>${state.points}分</strong>
         <div class="timer-title-card">
           <h1>${task ? escapeHtml(task.title) : '今天没有待办'}</h1>
         </div>
-        <strong>${state.points}分</strong>
+        <button class="soft-icon" data-action="card" aria-label="返回卡片">‹</button>
       </header>
       <nav class="mode-tabs">
         ${timerModes.map((mode) => `<button class="${mode.id === timerMode ? 'active' : ''}" data-timer-mode="${mode.id}">${mode.label}</button>`).join('')}

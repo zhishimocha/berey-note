@@ -3297,6 +3297,7 @@ body:has(.timer-shell) {
 
 @media (max-width: 430px) {
   .timer-shell {
+    padding-top: calc(100vw * 105 / 941 + 8px);
     background:
       url("./assets/top-border.png") top center / 100% auto no-repeat,
       url("./assets/bottom-border-mobile.png") bottom center / 100% auto no-repeat,
@@ -3310,5 +3311,28 @@ body:has(.timer-shell) {
 
   .timer-orb {
     width: min(57vw, 222px);
+  }
+}
+
+/* v30: align timer trim, single blue ring, and right-hand back button */
+.timer-shell .topbar {
+  grid-template-columns: 68px minmax(0, 1fr) 48px;
+}
+
+.timer-shell .topbar strong {
+  justify-self: start;
+}
+
+.timer-shell .soft-icon {
+  justify-self: end;
+}
+
+.timer-orb {
+  background: radial-gradient(circle closest-side, #fffaf7 0 72%, #b1dbea 73% 89%, transparent 90%);
+}
+
+@media (max-width: 430px) {
+  .timer-shell .topbar {
+    grid-template-columns: 62px minmax(0, 1fr) 44px;
   }
 }

@@ -181,6 +181,12 @@ function visibleTasks(date = state.selectedDate) {
     .sort((a, b) => a.createdAt - b.createdAt)
 }
 
+function listedTasks(date = state.selectedDate) {
+  return state.tasks
+    .filter((task) => task.date === date)
+    .sort((a, b) => a.createdAt - b.createdAt)
+}
+
 function cardQueue() {
   const today = todayKey()
   const tasks = visibleTasks(today)
@@ -509,7 +515,8 @@ function renderActiveView() {
 function renderQuadrants() {
   const tomorrowId = state.tomorrowFirst[addDays(state.selectedDate, 1)]
   const tomorrowTask = state.tasks.find((task) => task.id === tomorrowId)
-  const majorTasks = visibleTasks().filter((task) => task.quadrant === MAJOR_EVENT)
+  const tasks = listedTasks()
+  const majorTasks = tasks.filter((task) => task.quadrant === MAJOR_EVENT)
   return `
     <section class="content-stack">
       <div class="quadrant-tools">
@@ -530,7 +537,7 @@ function renderQuadrants() {
           <section class="quadrant">
             <h2>${name}</h2>
             <div class="task-list">
-              ${visibleTasks().filter((task) => task.quadrant === id).map(renderSmallTask).join('')}
+              ${tasks.filter((task) => task.quadrant === id).map(renderSmallTask).join('')}
             </div>
           </section>
         `).join('')}
@@ -541,12 +548,15 @@ function renderQuadrants() {
 
 function renderSmallTask(task) {
   return `
-    <button class="mini-task ${isDeleteMode ? 'is-deleting' : ''}" data-task-id="${task.id}">
-      <span>${escapeHtml(task.title)}</span>
-      ${task.note ? `<em>${escapeHtml(task.note)}</em>` : ''}
-      <small>${taskCategoryName(task)} · +${taskScore(task)}分</small>
+    <article class="mini-task ${task.done ? 'done' : ''} ${isDeleteMode ? 'is-deleting' : ''}">
+      <button class="mini-task-copy" ${task.done ? '' : `data-task-id="${task.id}"`}>
+        <span>${escapeHtml(task.title)}</span>
+        ${task.note ? `<em>${escapeHtml(task.note)}</em>` : ''}
+        <small>${taskCategoryName(task)} · +${taskScore(task)}分</small>
+      </button>
+      ${isDeleteMode ? '' : `<button class="check-round task-check ${task.done ? 'done' : ''}" data-complete-task="${task.id}" aria-label="${task.done ? '已完成' : '标记完成'}" ${task.done ? 'disabled' : ''}></button>`}
       ${isDeleteMode ? `<i class="delete-dot" data-delete-task="${task.id}">×</i>` : ''}
-    </button>
+    </article>
   `
 }
 
@@ -561,7 +571,7 @@ function renderHabits() {
             <strong>${escapeHtml(habit.name)}</strong>
             <span>${habitMeta(habit)}</span>
           </div>
-          <button class="check-round ${habit.checkedDates.includes(todayKey()) ? 'done' : ''}" data-habit-id="${habit.id}"></button>
+          <button class="check-round ${habit.checkedDates.includes(todayKey()) ? 'done' : ''}" data-habit-id="${habit.id}" aria-label="${habit.checkedDates.includes(todayKey()) ? '今日已打卡' : '今日打卡'}"></button>
         </article>
       `).join('')}
     </section>
@@ -976,6 +986,9 @@ function bindEvents() {
   })
   document.querySelectorAll('[data-task-id]').forEach((button) => {
     bindLongPress(button, () => setTomorrowFirst(button.dataset.taskId))
+  })
+  document.querySelectorAll('[data-complete-task]').forEach((button) => {
+    button.addEventListener('click', () => completeTask(button.dataset.completeTask))
   })
   document.querySelectorAll('[data-habit-id]').forEach((button) => {
     button.addEventListener('click', () => checkHabit(button.dataset.habitId))

@@ -3011,3 +3011,66 @@ body {
   padding: 0;
   font-size: 0.78rem;
 }
+
+/* v27: shared red-check completion control for tasks and habits */
+.mini-task {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding-right: 9px;
+}
+
+.mini-task.is-deleting {
+  padding-right: 36px;
+}
+
+.mini-task-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.mini-task.done .mini-task-copy span {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.mini-task.done small {
+  opacity: 0.65;
+}
+
+.check-round {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  border: 2px solid rgba(167, 45, 56, 0.25);
+  background: #fffaf8;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.task-check {
+  width: 30px;
+  height: 30px;
+}
+
+.check-round.done,
+.check-round.done:disabled {
+  border-color: rgba(167, 45, 56, 0.38);
+  background: #fff5f5;
+  cursor: default;
+  opacity: 1;
+}
+
+.check-round.done::after {
+  width: 8px;
+  height: 15px;
+  border: solid var(--berry);
+  border-width: 0 3px 3px 0;
+  content: "";
+  transform: translateY(-2px) rotate(43deg);
+}

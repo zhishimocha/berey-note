@@ -3563,3 +3563,15 @@ body:has(.timer-shell) {
     grid-column: span 2;
   }
 }
+
+/* v34: blend the achievement stage into the page and center mobile cards */
+.app-shell:has(.achievement-grid)::before {
+  display: none;
+}
+
+@media (max-width: 430px) {
+  .card-stage {
+    align-content: center;
+    padding: 0 24px;
+  }
+}

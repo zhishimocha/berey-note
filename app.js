@@ -279,6 +279,24 @@ function addTask(form) {
   const startDate = data.get('date')
   const endDate = data.get('endDate') || startDate
   const normalizedEndDate = endDate >= startDate ? endDate : startDate
+  const existingTask = state.tasks.find((task) => task.id === form.dataset.taskId)
+
+  if (existingTask) {
+    Object.assign(existingTask, {
+      title,
+      note,
+      date: startDate,
+      endDate: normalizedEndDate,
+      quadrant: category,
+      points: customPoints,
+    })
+    saveState()
+    closeModal()
+    render()
+    toast('任务已更新')
+    return
+  }
+
   const task = {
     id: crypto.randomUUID(),
     title,
@@ -910,16 +928,22 @@ function openAddModal() {
       </form>
     `)
   }
+  openTaskModal()
+}
+
+function openTaskModal(task = null) {
+  const startDate = task?.date || state.selectedDate
+  const endDate = task?.endDate || startDate
   openModal(`
-    <form class="modal-form" data-form="task">
-      <h2>添加任务</h2>
-      <label>任务名称<input name="title" autocomplete="off" required /></label>
-      <label>备注<textarea name="note" rows="1"></textarea></label>
-      ${renderTaskDateField('所属日期', 'date', state.selectedDate)}
-      ${renderTaskDateField('做到哪天', 'endDate', state.selectedDate)}
+    <form class="modal-form" data-form="task" data-task-id="${task?.id || ''}">
+      <h2>${task ? '编辑任务' : '添加任务'}</h2>
+      <label>任务名称<input name="title" autocomplete="off" value="${escapeHtml(task?.title || '')}" required /></label>
+      <label>备注<textarea name="note" rows="1">${escapeHtml(task?.note || '')}</textarea></label>
+      ${renderTaskDateField('所属日期', 'date', startDate)}
+      ${renderTaskDateField('做到哪天', 'endDate', endDate)}
       <label>所属象限
         <select name="quadrant">
-          ${Object.entries(quadrantNames).map(([id, name]) => `<option value="${id}">${name}</option>`).join('')}
+          ${[...Object.entries(quadrantNames), [MAJOR_EVENT, '重大事件']].map(([id, name]) => `<option value="${id}" ${task?.quadrant === id ? 'selected' : ''}>${name}</option>`).join('')}
         </select>
       </label>
       <button type="submit">保存</button>
@@ -1067,7 +1091,8 @@ function enhanceTaskModal() {
   pointInput.type = 'number'
   pointInput.min = '1'
   pointInput.max = String(MAJOR_EVENT_MAX_POINTS)
-  pointInput.value = '30'
+  const task = state.tasks.find((item) => item.id === form.dataset.taskId)
+  pointInput.value = String(task?.quadrant === MAJOR_EVENT ? clampPoints(task.points, 30) : 30)
   pointLabel.append(pointInput)
   select?.closest('label')?.after(pointLabel)
 
@@ -1181,6 +1206,13 @@ function bindEvents() {
   bindCountdownPicker()
   document.querySelectorAll('[data-task-id]').forEach((button) => {
     bindLongPress(button, () => setTomorrowFirst(button.dataset.taskId))
+    button.addEventListener('click', () => {
+      if (isDeleteMode) return
+      const task = state.tasks.find((item) => item.id === button.dataset.taskId)
+      if (!task) return
+      openTaskModal(task)
+      enhanceTaskModal()
+    })
   })
   document.querySelectorAll('[data-complete-task]').forEach((button) => {
     button.addEventListener('click', () => completeTask(button.dataset.completeTask, state.selectedDate))
@@ -1545,11 +1577,22 @@ function bindWheelSwipe(element) {
 }
 
 function bindLongPress(element, callback) {
+  let longPressed = false
   element.addEventListener('pointerdown', () => {
-    pressTimer = setTimeout(callback, 520)
+    longPressed = false
+    pressTimer = setTimeout(() => {
+      longPressed = true
+      callback()
+    }, 520)
   })
   element.addEventListener('pointerup', () => clearTimeout(pressTimer))
   element.addEventListener('pointerleave', () => clearTimeout(pressTimer))
+  element.addEventListener('click', (event) => {
+    if (!longPressed) return
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    longPressed = false
+  }, true)
 }
 
 window.addEventListener('pointerdown', () => {

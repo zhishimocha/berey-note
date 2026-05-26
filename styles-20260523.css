@@ -2697,7 +2697,7 @@ body {
     border-radius: 0;
     box-shadow: none;
     pointer-events: none;
-    background: url("./assets/bottom-border-mobile.png") bottom center / 100% auto no-repeat;
+    background: url("./assets/bottom-border-mobile-clean.png") bottom center / 100% auto no-repeat;
     content: "";
   }
 

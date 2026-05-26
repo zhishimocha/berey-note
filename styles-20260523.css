@@ -3725,15 +3725,9 @@ body:has(.timer-shell) {
 }
 
 .bag-panel h2 {
-  margin: 0 0 4px;
+  margin: 0;
   color: var(--berry-dark);
   font-size: 1.18rem;
-}
-
-.bag-panel header p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.8rem;
 }
 
 .coupon-list {
@@ -3844,4 +3838,12 @@ body:has(.timer-shell) {
   font-weight: 700;
   line-height: 1.8;
   text-align: center;
+}
+
+body:has(.bag-panel) .toast {
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  white-space: nowrap;
 }

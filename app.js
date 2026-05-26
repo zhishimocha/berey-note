@@ -856,7 +856,6 @@ function openBagModal() {
         <span aria-hidden="true">🛍️</span>
         <div>
           <h2>我的行囊</h2>
-          <p>已经兑换的小礼物，想用时再打开</p>
         </div>
       </header>
       ${coupons.length ? `
@@ -875,7 +874,7 @@ function openBagModal() {
       ` : `
         <section class="bag-empty">
           <span aria-hidden="true">🛍️</span>
-          <p>行囊还是空空的，<br />完成一个小目标，把送给自己的礼物带回来吧。</p>
+          <p>行囊还是空空的，<br />完成一个小目标，<br />把送给自己的礼物带回来吧。</p>
         </section>
       `}
     </div>

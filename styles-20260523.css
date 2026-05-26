@@ -3598,3 +3598,64 @@ body:has(.timer-shell) {
     margin-left: auto;
   }
 }
+
+/* v36: gingham bow and one clean, cropped footer decoration across screens */
+.bow-mark {
+  top: 28px;
+  right: 34px;
+  width: 94px;
+  height: 78px;
+  background-image: url("./assets/bow-gingham.png");
+  transform: rotate(6deg);
+  filter: drop-shadow(0 6px 8px rgba(127, 23, 36, 0.12));
+}
+
+.card-shell,
+.app-shell,
+.timer-shell,
+.app-shell:has(.achievement-grid) {
+  background:
+    url("./assets/top-border.png") top center / 100% auto no-repeat,
+    #fffaf6;
+}
+
+.card-shell::after,
+.app-shell::after,
+.timer-shell::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+  display: block;
+  width: auto;
+  height: calc(min(100vw, 1080px) * 219 / 941);
+  border: 0;
+  border-radius: 0;
+  background: url("./assets/bottom-border-mobile-clean.png") bottom center / 100% auto no-repeat;
+  box-shadow: none;
+  transform: none;
+  pointer-events: none;
+  content: "";
+}
+
+.card-shell::before {
+  display: none;
+}
+
+.app-shell .fab-add {
+  bottom: calc(min(100vw, 1080px) * 219 / 941 + 18px);
+}
+
+.app-shell .fab-card {
+  bottom: calc(min(100vw, 1080px) * 219 / 941 + 76px);
+}
+
+@media (max-width: 430px) {
+  .bow-mark {
+    top: 29px;
+    right: 27px;
+    width: 82px;
+    height: 68px;
+  }
+}

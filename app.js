@@ -58,6 +58,14 @@ const defaultScoreRules = {
   q3: 4,
   q4: 2,
 }
+const GACHA_TASK_TARGET = 5
+const gachaRewards = [
+  { points: 5, weight: 35 },
+  { points: 6, weight: 30 },
+  { points: 8, weight: 20 },
+  { points: 11, weight: 10 },
+  { points: 18, weight: 5 },
+]
 
 const taskCategoryName = (task) => task?.quadrant === MAJOR_EVENT ? '重大事件' : quadrantNames[task?.quadrant]
 
@@ -94,6 +102,8 @@ const defaultState = () => ({
   completions: {},
   tomorrowFirst: {},
   scoreRules: defaultScoreRules,
+  gachaSpinsUsed: 0,
+  lastGachaReward: null,
   lastAction: null,
   tasks: [
     {
@@ -152,6 +162,8 @@ let taskDatePicker = null
 let lastSwipeAt = 0
 let isDeleteMode = false
 let rolloverPromptOpen = false
+let gachaAnimation = 'idle'
+let concealedGachaPoints = 0
 
 function loadState() {
   try {
@@ -362,6 +374,45 @@ function redeemReward(id) {
   render()
 }
 
+function gachaProgress() {
+  const completed = state.completedTotal || 0
+  const earnedSpins = Math.floor(completed / GACHA_TASK_TARGET)
+  const usedSpins = Math.min(earnedSpins, state.gachaSpinsUsed || 0)
+  return {
+    completed,
+    towardNext: completed % GACHA_TASK_TARGET,
+    remaining: GACHA_TASK_TARGET - (completed % GACHA_TASK_TARGET),
+    available: earnedSpins - usedSpins,
+  }
+}
+
+function drawGachaReward() {
+  const value = Math.random() * 100
+  let cursor = 0
+  return gachaRewards.find((reward) => {
+    cursor += reward.weight
+    return value < cursor
+  }) || gachaRewards[gachaRewards.length - 1]
+}
+
+function spinGacha() {
+  const progress = gachaProgress()
+  if (!progress.available || gachaAnimation === 'spinning') return toast('再完成一些任务就能扭蛋啦')
+  const reward = drawGachaReward()
+  state.gachaSpinsUsed = (state.gachaSpinsUsed || 0) + 1
+  state.points += reward.points
+  state.lastGachaReward = { points: reward.points, date: todayKey(), claimedAt: Date.now() }
+  saveState()
+  concealedGachaPoints = reward.points
+  gachaAnimation = 'spinning'
+  render()
+  setTimeout(() => {
+    concealedGachaPoints = 0
+    gachaAnimation = 'revealed'
+    render()
+  }, 1250)
+}
+
 function deleteTask(taskId) {
   state.tasks = state.tasks.filter((task) => task.id !== taskId)
   Object.keys(state.tomorrowFirst).forEach((key) => {
@@ -550,6 +601,7 @@ function renderCountdownPicker() {
 }
 
 function renderMainScreen() {
+  const displayedPoints = state.points - (gachaAnimation === 'spinning' ? concealedGachaPoints : 0)
   return `
     <main class="shell app-shell">
       <header class="main-header">
@@ -558,7 +610,7 @@ function renderMainScreen() {
           : '<div class="header-spacer"></div>'}
         <div class="points-center">
           <span>积分</span>
-          <strong>${state.points}</strong>
+          <strong>${displayedPoints}</strong>
         </div>
         <button class="avatar-button" data-action="profile" aria-label="头像菜单">
           ${state.avatarImage ? `<img src="${escapeHtml(state.avatarImage)}" alt="" />` : ''}
@@ -734,6 +786,11 @@ function renderShop() {
 }
 
 function renderAchievements() {
+  const progress = gachaProgress()
+  const progressPercent = (progress.towardNext / GACHA_TASK_TARGET) * 100
+  const reward = state.lastGachaReward
+  const isSpinning = gachaAnimation === 'spinning'
+  const spinLabel = isSpinning ? '正在掉落...' : progress.available ? '扭一次' : '继续完成任务'
   return `
     <section class="achievement-grid">
       <div class="achievement-stats">
@@ -741,13 +798,22 @@ function renderAchievements() {
         <article class="cat-stat cat-total"><div class="cat-badge"><strong>${state.completedTotal}</strong></div><span>累计完成</span></article>
         <article class="cat-stat cat-streak"><div class="cat-badge"><strong>${streakDays()}</strong></div><span>连续完成</span></article>
       </div>
-      <article class="heatmap-card">
-        <div class="heatmap-title">
-          <button data-heatmap-month="-1">‹</button>
-          <strong>${monthlyHeatmapLabel()}</strong>
-          <button data-heatmap-month="1">›</button>
+      <article class="gacha-card ${gachaAnimation}">
+        <div class="gacha-title">
+          <strong>莓莓好运扭蛋机</strong>
+          <span>机会 ${progress.available} 次</span>
         </div>
-        ${renderMonthlyHeatmap()}
+        <div class="gacha-machine-wrap">
+          <img class="gacha-machine" src="./assets/gacha-machine-milky.jpg" alt="莓莓好运扭蛋机" />
+          <i class="gacha-capsule" aria-hidden="true"></i>
+        </div>
+        <p class="gacha-copy">每完成 5 个任务，获得 1 次抽奖机会</p>
+        <div class="gacha-progress" aria-label="距离下一次抽奖还差 ${progress.remaining} 个任务">
+          <i style="width: ${progressPercent}%"></i>
+        </div>
+        <small>进度 ${progress.towardNext}/${GACHA_TASK_TARGET} · 还差 ${progress.remaining} 个任务</small>
+        <button class="gacha-spin" data-gacha-spin ${progress.available && !isSpinning ? '' : 'disabled'}>${spinLabel}</button>
+        ${reward ? `<p class="gacha-result ${isSpinning ? '' : 'show'}">最近好运：+${reward.points} 分</p>` : ''}
       </article>
     </section>
   `
@@ -1125,6 +1191,7 @@ function bindEvents() {
   document.querySelectorAll('[data-reward-id]').forEach((button) => {
     button.addEventListener('click', () => redeemReward(button.dataset.rewardId))
   })
+  document.querySelector('[data-gacha-spin]')?.addEventListener('click', spinGacha)
   document.querySelectorAll('[data-delete-task]').forEach((button) => {
     button.addEventListener('click', (event) => {
       event.stopPropagation()

@@ -3392,3 +3392,176 @@ body:has(.timer-shell) {
 .timer-orb.has-picker {
   background: #fff8f2;
 }
+
+/* v33: interactive achievement gacha machine */
+.achievement-grid .gacha-card {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 14px 14px 16px;
+  border: 1px solid rgba(117, 161, 184, 0.2);
+  border-radius: 24px;
+  background: #fff8f2;
+  box-shadow: var(--small-shadow);
+}
+
+.gacha-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+}
+
+.gacha-title strong {
+  color: var(--berry-dark);
+  font-size: 1rem;
+}
+
+.gacha-title span {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--sky);
+  color: var(--berry-dark);
+  font-size: 0.76rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.gacha-machine-wrap {
+  position: relative;
+  width: min(78vw, 286px);
+  margin: 1px auto -1px;
+}
+
+.gacha-machine {
+  display: block;
+  width: 100%;
+  border-radius: 18px;
+  mix-blend-mode: multiply;
+}
+
+.gacha-card.spinning .gacha-machine {
+  animation: gacha-shake 520ms ease-in-out 2;
+}
+
+.gacha-capsule {
+  position: absolute;
+  right: 46%;
+  bottom: 15%;
+  display: none;
+  width: 26px;
+  height: 29px;
+  border: 2px solid rgba(127, 23, 36, 0.18);
+  border-radius: 50%;
+  background:
+    linear-gradient(to bottom, #d9eff7 0 48%, #f0bdc4 48% 100%);
+  box-shadow: 0 6px 12px rgba(127, 23, 36, 0.12);
+}
+
+.gacha-card.spinning .gacha-capsule {
+  display: block;
+  animation: gacha-drop 820ms 450ms ease-out both;
+}
+
+.gacha-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.gacha-progress {
+  width: min(100%, 224px);
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #f3e0dc;
+}
+
+.gacha-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #b9dff3, #d97883);
+  transition: width 240ms ease;
+}
+
+.achievement-grid .gacha-card small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.gacha-spin {
+  min-width: 122px;
+  min-height: 39px;
+  margin-top: 3px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--berry);
+  color: #fff;
+  font-weight: 900;
+}
+
+.gacha-spin:disabled {
+  background: #f0dfe0;
+  color: var(--muted);
+  opacity: 1;
+}
+
+.gacha-result {
+  min-height: 19px;
+  margin: 0;
+  color: var(--berry);
+  font-size: 0.84rem;
+  font-weight: 900;
+  opacity: 0;
+  transform: translateY(5px);
+}
+
+.gacha-result.show {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 240ms ease, transform 240ms ease;
+}
+
+@keyframes gacha-shake {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  25% {
+    transform: rotate(-1.7deg);
+  }
+  75% {
+    transform: rotate(1.7deg);
+  }
+}
+
+@keyframes gacha-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.8);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(45px) scale(1);
+  }
+  72% {
+    transform: translateY(36px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(45px) scale(1);
+  }
+}
+
+@media (min-width: 780px) {
+  .gacha-card {
+    grid-column: span 2;
+  }
+}

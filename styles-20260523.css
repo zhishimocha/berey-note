@@ -3659,3 +3659,189 @@ body:has(.timer-shell) {
     height: 68px;
   }
 }
+
+/* v37: shop gift bag for redeemed rewards */
+.fab-bag {
+  display: grid;
+  place-items: center;
+  background: #fff0e8;
+  font-size: 1.35rem;
+}
+
+.fab-bag span {
+  line-height: 1;
+}
+
+.fab-bag i {
+  position: absolute;
+  top: -4px;
+  right: -3px;
+  display: grid;
+  place-items: center;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border: 2px solid #fffaf6;
+  border-radius: 999px;
+  background: var(--berry);
+  color: #fff;
+  font-size: 0.64rem;
+  font-style: normal;
+}
+
+.app-shell .fab-bag {
+  bottom: calc(min(100vw, 1080px) * 219 / 941 + 134px);
+}
+
+.modal-card:has(.bag-panel) {
+  width: min(100%, 480px);
+  max-height: min(72vh, 620px);
+  padding: 23px 18px 20px;
+  overflow: hidden;
+  border-radius: 28px 28px 22px 22px;
+  background: #fffaf4;
+}
+
+.bag-panel {
+  display: grid;
+  gap: 20px;
+}
+
+.bag-panel header {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding-right: 34px;
+}
+
+.bag-panel header > span {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  background: #fce9e1;
+  font-size: 1.6rem;
+}
+
+.bag-panel h2 {
+  margin: 0 0 4px;
+  color: var(--berry-dark);
+  font-size: 1.18rem;
+}
+
+.bag-panel header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.coupon-list {
+  display: grid;
+  gap: 12px;
+  max-height: min(48vh, 440px);
+  overflow-y: auto;
+  padding: 1px 2px 3px;
+}
+
+.coupon-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 94px;
+  padding: 16px 14px 13px 18px;
+  border: 1px dashed rgba(160, 74, 64, 0.28);
+  border-radius: 18px;
+  background: #fff4ee;
+}
+
+.coupon-card::before,
+.coupon-card::after {
+  position: absolute;
+  top: calc(50% - 8px);
+  width: 15px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fffaf4;
+  content: "";
+}
+
+.coupon-card::before {
+  left: -8px;
+}
+
+.coupon-card::after {
+  right: -8px;
+}
+
+.coupon-card strong {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--berry-dark);
+  font-size: 0.98rem;
+}
+
+.coupon-card small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.coupon-card b {
+  position: absolute;
+  top: 13px;
+  right: 16px;
+  color: var(--berry-dark);
+  font-size: 0.8rem;
+}
+
+.coupon-card button {
+  grid-column: 2;
+  justify-self: end;
+  min-width: 74px;
+  height: 34px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--petal);
+  color: var(--berry-dark);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.coupon-card:has(b) button {
+  margin-top: 19px;
+}
+
+.bag-empty {
+  display: grid;
+  justify-items: center;
+  min-height: 254px;
+  align-content: center;
+  gap: 21px;
+  padding: 18px;
+  border-radius: 20px;
+  background: #fff5ef;
+}
+
+.bag-empty span {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: #fce7df;
+  font-size: 2.25rem;
+}
+
+.bag-empty p {
+  max-width: 285px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.91rem;
+  font-weight: 700;
+  line-height: 1.8;
+  text-align: center;
+}

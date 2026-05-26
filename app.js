@@ -140,6 +140,7 @@ const defaultState = () => ({
     { id: crypto.randomUUID(), name: '奶茶券', cost: 30 },
     { id: crypto.randomUUID(), name: '买小东西', cost: 80 },
   ],
+  rewardCoupons: [],
 })
 
 let state = loadState()
@@ -175,6 +176,7 @@ function loadState() {
       ...stored,
       scoreRules: { ...defaults.scoreRules, ...(stored.scoreRules || {}) },
       tasks: (stored.tasks || defaults.tasks).map(normalizeTask),
+      rewardCoupons: Array.isArray(stored.rewardCoupons) ? stored.rewardCoupons : defaults.rewardCoupons,
     }
     if (loaded.lastSeenDate !== todayKey()) {
       loaded.selectedDate = todayKey()
@@ -388,8 +390,31 @@ function redeemReward(id) {
   const reward = state.rewards.find((item) => item.id === id)
   if (!reward || state.points < reward.cost) return toast('积分还不够')
   state.points -= reward.cost
+  state.rewardCoupons.push({
+    id: crypto.randomUUID(),
+    rewardId: reward.id,
+    name: reward.name,
+    cost: reward.cost,
+    redeemedAt: Date.now(),
+    usedAt: null,
+  })
   saveState()
   render()
+  toast(`已将「${reward.name}」放进行囊`)
+}
+
+function availableRewardCoupons() {
+  return (state.rewardCoupons || []).filter((coupon) => !coupon.usedAt)
+}
+
+function useRewardCoupon(id) {
+  const coupon = state.rewardCoupons.find((item) => item.id === id && !item.usedAt)
+  if (!coupon) return
+  coupon.usedAt = Date.now()
+  saveState()
+  openBagModal()
+  render()
+  toast(`已使用「${coupon.name}」，好好享受吧`)
 }
 
 function gachaProgress() {
@@ -646,7 +671,18 @@ function renderMainScreen() {
       </nav>
       ${state.activeView === 'achievements' ? '' : `<button class="fab fab-card" data-action="card" aria-label="卡片模式">卡</button>`}
       ${state.activeView === 'achievements' ? '' : `<button class="fab fab-add" data-action="add" aria-label="添加">＋</button>`}
+      ${state.activeView === 'shop' ? renderBagButton() : ''}
     </main>
+  `
+}
+
+function renderBagButton() {
+  const couponCount = availableRewardCoupons().length
+  return `
+    <button class="fab fab-bag" data-action="open-bag" aria-label="我的行囊">
+      <span aria-hidden="true">🛍️</span>
+      ${couponCount ? `<i>${couponCount}</i>` : ''}
+    </button>
   `
 }
 
@@ -801,6 +837,49 @@ function renderShop() {
       `).join('')}
     </section>
   `
+}
+
+function openBagModal() {
+  const couponGroups = availableRewardCoupons().reduce((groups, coupon) => {
+    const key = `${coupon.name}\u0000${coupon.cost}`
+    const group = groups.get(key) || { ...coupon, count: 0 }
+    group.count += 1
+    group.redeemedAt = Math.max(group.redeemedAt || 0, coupon.redeemedAt || 0)
+    groups.set(key, group)
+    return groups
+  }, new Map())
+  const coupons = Array.from(couponGroups.values()).sort((a, b) => b.redeemedAt - a.redeemedAt)
+
+  openModal(`
+    <div class="bag-panel">
+      <header>
+        <span aria-hidden="true">🛍️</span>
+        <div>
+          <h2>我的行囊</h2>
+          <p>已经兑换的小礼物，想用时再打开</p>
+        </div>
+      </header>
+      ${coupons.length ? `
+        <section class="coupon-list" aria-label="未使用的礼物券">
+          ${coupons.map((coupon) => `
+            <article class="coupon-card">
+              <div>
+                <strong>${escapeHtml(coupon.name)}</strong>
+                <small>${coupon.cost}分 · ${shortDate(toDateKey(new Date(coupon.redeemedAt)))}兑换</small>
+              </div>
+              ${coupon.count > 1 ? `<b>×${coupon.count}</b>` : ''}
+              <button type="button" data-use-coupon="${coupon.id}">${coupon.count > 1 ? '使用一张' : '使用'}</button>
+            </article>
+          `).join('')}
+        </section>
+      ` : `
+        <section class="bag-empty">
+          <span aria-hidden="true">🛍️</span>
+          <p>行囊还是空空的，<br />完成一个小目标，把送给自己的礼物带回来吧。</p>
+        </section>
+      `}
+    </div>
+  `)
 }
 
 function renderAchievements() {
@@ -1163,6 +1242,7 @@ function importState(file) {
         ...imported,
         scoreRules: { ...defaults.scoreRules, ...(imported.scoreRules || {}) },
         tasks: (imported.tasks || defaults.tasks).map(normalizeTask),
+        rewardCoupons: Array.isArray(imported.rewardCoupons) ? imported.rewardCoupons : defaults.rewardCoupons,
       }
       calendarCursor = new Date(`${state.selectedDate}T00:00:00`)
       saveState()
@@ -1274,6 +1354,9 @@ function bindModalEvents() {
   document.querySelectorAll('[data-rollover-delete]').forEach((button) => {
     button.addEventListener('click', () => discardRolloverTask(button.dataset.rolloverDelete))
   })
+  document.querySelectorAll('[data-use-coupon]').forEach((button) => {
+    button.addEventListener('click', () => useRewardCoupon(button.dataset.useCoupon))
+  })
   const permanentToggle = document.querySelector('[data-habit-permanent]')
   const habitEndInput = document.querySelector('[data-habit-end]')
   if (permanentToggle && habitEndInput) {
@@ -1354,6 +1437,7 @@ function handleAction(event) {
   if (action === 'profile') profileOpen = !profileOpen
   if (action === 'open-profile-modal') openProfileModal()
   if (action === 'open-sync-modal') openSyncModal()
+  if (action === 'open-bag') openBagModal()
   if (action === 'undo') undoLastAction()
   if (action === 'toggle-delete') isDeleteMode = !isDeleteMode
   if (action === 'close-modal') {
@@ -1373,7 +1457,7 @@ function handleAction(event) {
 }
 
 function renderIfNeeded(action) {
-  const noRender = ['add', 'calendar', 'close-modal', 'continue-timer', 'open-profile-modal', 'open-sync-modal', 'rollover-dismiss']
+  const noRender = ['add', 'calendar', 'close-modal', 'continue-timer', 'open-profile-modal', 'open-sync-modal', 'open-bag', 'rollover-dismiss']
   if (!noRender.includes(action)) render()
 }
 
@@ -1652,7 +1736,10 @@ function escapeHtml(value) {
 
 function toast(message) {
   document.querySelector('.toast')?.remove()
-  document.body.insertAdjacentHTML('beforeend', `<div class="toast">${message}</div>`)
+  const notification = document.createElement('div')
+  notification.className = 'toast'
+  notification.textContent = message
+  document.body.append(notification)
   setTimeout(() => document.querySelector('.toast')?.remove(), 1500)
 }
 

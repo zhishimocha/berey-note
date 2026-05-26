@@ -3575,3 +3575,26 @@ body:has(.timer-shell) {
     padding: 0 24px;
   }
 }
+
+/* v35: keep achievement background uniform and center the card on the viewport */
+.app-shell:has(.achievement-grid) {
+  background:
+    url("./assets/top-border.png") top center / 100% auto no-repeat,
+    url("./assets/bottom-border.png") bottom center / 100% auto no-repeat,
+    #fff7f1;
+}
+
+@media (max-width: 430px) {
+  .card-stage {
+    justify-items: center;
+    padding-right: 0;
+    padding-left: 0;
+  }
+
+  .task-focus-card {
+    justify-self: center;
+    width: min(91vw, 420px);
+    margin-right: auto;
+    margin-left: auto;
+  }
+}

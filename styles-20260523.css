@@ -3399,11 +3399,10 @@ body:has(.timer-shell) {
   display: grid;
   justify-items: center;
   gap: 8px;
-  padding: 14px 14px 16px;
-  border: 1px solid rgba(117, 161, 184, 0.2);
-  border-radius: 24px;
-  background: #fff8f2;
-  box-shadow: var(--small-shadow);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .gacha-title {
@@ -3439,7 +3438,6 @@ body:has(.timer-shell) {
   display: block;
   width: 100%;
   border-radius: 18px;
-  mix-blend-mode: multiply;
 }
 
 .gacha-card.spinning .gacha-machine {

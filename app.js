@@ -896,11 +896,11 @@ function renderAchievements() {
       </div>
       <article class="gacha-card ${gachaAnimation}">
         <div class="gacha-title">
-          <strong>莓莓好运扭蛋机</strong>
+          <strong>好运扭蛋机</strong>
           <span>机会 ${progress.available} 次</span>
         </div>
         <div class="gacha-machine-wrap">
-          <img class="gacha-machine" src="./assets/gacha-machine-cutout.png" alt="莓莓好运扭蛋机" />
+          <img class="gacha-machine" src="./assets/gacha-machine-cutout.png" alt="好运扭蛋机" />
           <i class="gacha-capsule" aria-hidden="true"></i>
         </div>
         <p class="gacha-copy">每完成 5 个任务，获得 1 次抽奖机会</p>

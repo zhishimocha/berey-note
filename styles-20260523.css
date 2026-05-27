@@ -2385,6 +2385,12 @@ body {
   padding-right: 42px;
 }
 
+.reward-card .item-delete {
+  padding: 0;
+  line-height: 1;
+  text-align: center;
+}
+
 .card-shell::before {
   display: none;
 }
@@ -3414,8 +3420,13 @@ body:has(.timer-shell) {
 }
 
 .gacha-title strong {
-  color: var(--berry-dark);
-  font-size: 1rem;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--berry);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 900;
+  white-space: nowrap;
 }
 
 .gacha-title span {

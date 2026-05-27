@@ -3187,6 +3187,12 @@ body:has(.timer-shell) {
   padding: 0 18px;
 }
 
+.timer-shell .timer-actions .timer-sound-button.is-on {
+  border-color: rgba(117, 161, 184, 0.32);
+  background: #d9eff7;
+  color: var(--berry-dark);
+}
+
 .timer-orb {
   display: grid;
   place-items: center;
@@ -3648,6 +3654,11 @@ body:has(.timer-shell) {
   transform: none;
   pointer-events: none;
   content: "";
+}
+
+/* v38: bring the shared content frame back to the achievement view */
+.app-shell:has(.achievement-grid)::before {
+  display: block;
 }
 
 .card-shell::before {

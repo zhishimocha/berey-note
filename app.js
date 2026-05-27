@@ -105,6 +105,7 @@ const defaultState = () => ({
   gachaSpinsUsed: 0,
   lastGachaReward: null,
   lastAction: null,
+  timerSoundEnabled: true,
   tasks: [
     {
       id: crypto.randomUUID(),
@@ -153,6 +154,7 @@ let timerSeconds = 0
 let timerTarget = 300
 let countdownSelection = { hours: 0, minutes: 10, seconds: 0 }
 let timerInterval = null
+let timerAudioContext = null
 let startupPromptShown = false
 let calendarCursor = new Date(`${state.selectedDate}T00:00:00`)
 let pressTimer = null
@@ -616,6 +618,7 @@ function renderTimerScreen() {
         <button data-action="pause-timer">暂停</button>
         <button data-action="finish-timer" ${task ? '' : 'disabled'}>完成</button>
         <button data-action="rest-timer">休息</button>
+        <button class="timer-sound-button ${state.timerSoundEnabled ? 'is-on' : ''}" data-action="toggle-timer-sound" aria-pressed="${state.timerSoundEnabled}">铃声${state.timerSoundEnabled ? '开' : '关'}</button>
       </div>
     </main>
   `
@@ -1452,6 +1455,7 @@ function handleAction(event) {
   }
   if (action === 'finish-timer') finishTimer()
   if (action === 'rest-timer') restTimer()
+  if (action === 'toggle-timer-sound') toggleTimerSound()
   renderIfNeeded(action)
 }
 
@@ -1559,7 +1563,52 @@ function toggleTimer() {
   timerRunning ? pauseTimer() : startTimer()
 }
 
+function ensureTimerAudio() {
+  const AudioContext = window.AudioContext || window.webkitAudioContext
+  if (!AudioContext) return null
+  if (!timerAudioContext) timerAudioContext = new AudioContext()
+  if (timerAudioContext.state === 'suspended') timerAudioContext.resume()
+  return timerAudioContext
+}
+
+function playTimerBell(preview = false) {
+  if (!preview && !state.timerSoundEnabled) return
+  const audio = ensureTimerAudio()
+  if (!audio) return
+  const startAt = audio.currentTime + 0.02
+  const notes = preview ? [659.25, 783.99] : [523.25, 659.25, 783.99]
+
+  notes.forEach((frequency, index) => {
+    const noteAt = startAt + index * 0.2
+    const gain = audio.createGain()
+    const tone = audio.createOscillator()
+    const shimmer = audio.createOscillator()
+    tone.type = 'sine'
+    shimmer.type = 'sine'
+    tone.frequency.value = frequency
+    shimmer.frequency.value = frequency * 2
+    gain.gain.setValueAtTime(0.0001, noteAt)
+    gain.gain.exponentialRampToValueAtTime(preview ? 0.07 : 0.11, noteAt + 0.012)
+    gain.gain.exponentialRampToValueAtTime(0.0001, noteAt + 0.7)
+    tone.connect(gain)
+    shimmer.connect(gain)
+    gain.connect(audio.destination)
+    tone.start(noteAt)
+    shimmer.start(noteAt)
+    tone.stop(noteAt + 0.72)
+    shimmer.stop(noteAt + 0.72)
+  })
+}
+
+function toggleTimerSound() {
+  state.timerSoundEnabled = !state.timerSoundEnabled
+  saveState()
+  if (state.timerSoundEnabled) playTimerBell(true)
+  toast(state.timerSoundEnabled ? '到点铃声已开启' : '到点铃声已关闭')
+}
+
 function startTimer() {
+  if (state.timerSoundEnabled) ensureTimerAudio()
   timerRunning = true
   clearInterval(timerInterval)
   timerInterval = setInterval(() => {
@@ -1567,6 +1616,8 @@ function startTimer() {
       timerSeconds = Math.max(0, timerSeconds - 1)
       if (timerSeconds === 0) {
         pauseTimer()
+        playTimerBell()
+        toast(timerMode === 'pomodoro' ? '番茄时间到啦' : '倒计时结束啦')
         render()
       }
     } else {

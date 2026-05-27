@@ -155,6 +155,9 @@ let timerTarget = 300
 let countdownSelection = { hours: 0, minutes: 10, seconds: 0 }
 let timerInterval = null
 let timerAudioContext = null
+let timerStartedAt = 0
+let timerStartSeconds = 0
+let scheduledTimerBellNodes = []
 let startupPromptShown = false
 let calendarCursor = new Date(`${state.selectedDate}T00:00:00`)
 let pressTimer = null
@@ -1498,6 +1501,7 @@ function switchTimerMode(mode, shouldRender = true) {
   timerRunning = false
   startupPromptShown = false
   clearInterval(timerInterval)
+  cancelScheduledTimerBell()
   if (mode === 'countdown') timerSeconds = countdownSeconds()
   else if (mode === 'pomodoro') timerSeconds = 1500
   else timerSeconds = 0
@@ -1571,15 +1575,22 @@ function ensureTimerAudio() {
   return timerAudioContext
 }
 
-function playTimerBell(preview = false) {
-  if (!preview && !state.timerSoundEnabled) return
+function createTimerBell(preview = false, delaySeconds = 0) {
   const audio = ensureTimerAudio()
-  if (!audio) return
-  const startAt = audio.currentTime + 0.02
-  const notes = preview ? [659.25, 783.99] : [523.25, 659.25, 783.99]
+  if (!audio) return []
+  const startAt = audio.currentTime + Math.max(0, delaySeconds) + 0.02
+  const notes = preview
+    ? [[0, 659.25], [0.2, 783.99]]
+    : [
+        [0, 523.25], [0.26, 659.25], [0.52, 783.99],
+        [2.05, 523.25], [2.31, 659.25], [2.57, 783.99],
+        [4.1, 523.25], [4.36, 659.25], [4.62, 783.99],
+      ]
+  const noteLength = preview ? 0.7 : 1.18
+  const nodes = []
 
-  notes.forEach((frequency, index) => {
-    const noteAt = startAt + index * 0.2
+  notes.forEach(([delay, frequency]) => {
+    const noteAt = startAt + delay
     const gain = audio.createGain()
     const tone = audio.createOscillator()
     const shimmer = audio.createOscillator()
@@ -1589,48 +1600,92 @@ function playTimerBell(preview = false) {
     shimmer.frequency.value = frequency * 2
     gain.gain.setValueAtTime(0.0001, noteAt)
     gain.gain.exponentialRampToValueAtTime(preview ? 0.07 : 0.11, noteAt + 0.012)
-    gain.gain.exponentialRampToValueAtTime(0.0001, noteAt + 0.7)
+    gain.gain.exponentialRampToValueAtTime(0.0001, noteAt + noteLength)
     tone.connect(gain)
     shimmer.connect(gain)
     gain.connect(audio.destination)
     tone.start(noteAt)
     shimmer.start(noteAt)
-    tone.stop(noteAt + 0.72)
-    shimmer.stop(noteAt + 0.72)
+    tone.stop(noteAt + noteLength + 0.02)
+    shimmer.stop(noteAt + noteLength + 0.02)
+    nodes.push(tone, shimmer)
   })
+  return nodes
+}
+
+function playTimerBell(preview = false) {
+  if (!preview && !state.timerSoundEnabled) return
+  createTimerBell(preview)
+}
+
+function cancelScheduledTimerBell() {
+  scheduledTimerBellNodes.forEach((node) => {
+    try {
+      node.stop()
+    } catch {
+      // A completed oscillator cannot be stopped again.
+    }
+  })
+  scheduledTimerBellNodes = []
+}
+
+function scheduleTimerBell() {
+  cancelScheduledTimerBell()
+  if (!state.timerSoundEnabled || (timerMode !== 'countdown' && timerMode !== 'pomodoro')) return
+  scheduledTimerBellNodes = createTimerBell(false, timerSeconds)
 }
 
 function toggleTimerSound() {
   state.timerSoundEnabled = !state.timerSoundEnabled
   saveState()
-  if (state.timerSoundEnabled) playTimerBell(true)
+  if (state.timerSoundEnabled) {
+    playTimerBell(true)
+    if (timerRunning) scheduleTimerBell()
+  } else {
+    cancelScheduledTimerBell()
+  }
   toast(state.timerSoundEnabled ? '到点铃声已开启' : '到点铃声已关闭')
+}
+
+function liveTimerSeconds(now = Date.now()) {
+  if (!timerRunning) return timerSeconds
+  const elapsed = Math.floor((now - timerStartedAt) / 1000)
+  if (timerMode === 'countdown' || timerMode === 'pomodoro') {
+    return Math.max(0, timerStartSeconds - elapsed)
+  }
+  return timerStartSeconds + elapsed
+}
+
+function updateRunningTimer() {
+  if (!timerRunning) return
+  timerSeconds = liveTimerSeconds()
+  if ((timerMode === 'countdown' || timerMode === 'pomodoro') && timerSeconds === 0) {
+    const bellAlreadyScheduled = scheduledTimerBellNodes.length > 0
+    pauseTimer(true)
+    if (!bellAlreadyScheduled && state.timerSoundEnabled) scheduledTimerBellNodes = createTimerBell()
+    toast(timerMode === 'pomodoro' ? '番茄时间到啦' : '倒计时结束啦')
+    render()
+    return
+  }
+  const display = document.querySelector('.timer-display')
+  if (display) display.textContent = formatTimer(timerSeconds, timerMode)
 }
 
 function startTimer() {
   if (state.timerSoundEnabled) ensureTimerAudio()
+  timerStartedAt = Date.now()
+  timerStartSeconds = timerSeconds
   timerRunning = true
+  scheduleTimerBell()
   clearInterval(timerInterval)
-  timerInterval = setInterval(() => {
-    if (timerMode === 'countdown' || timerMode === 'pomodoro') {
-      timerSeconds = Math.max(0, timerSeconds - 1)
-      if (timerSeconds === 0) {
-        pauseTimer()
-        playTimerBell()
-        toast(timerMode === 'pomodoro' ? '番茄时间到啦' : '倒计时结束啦')
-        render()
-      }
-    } else {
-      timerSeconds += 1
-    }
-    const display = document.querySelector('.timer-display')
-    if (display) display.textContent = formatTimer(timerSeconds, timerMode)
-  }, 1000)
+  timerInterval = setInterval(updateRunningTimer, 1000)
 }
 
-function pauseTimer() {
+function pauseTimer(keepScheduledBell = false) {
+  if (timerRunning) timerSeconds = liveTimerSeconds()
   timerRunning = false
   clearInterval(timerInterval)
+  if (!keepScheduledBell) cancelScheduledTimerBell()
   if (timerMode === 'countdown') syncCountdownSelection(timerSeconds)
   closeModal()
 }
@@ -1734,6 +1789,10 @@ window.addEventListener('pointerdown', () => {
     startupPromptShown = true
     openStartupPrompt()
   }
+})
+
+document.addEventListener('visibilitychange', () => {
+  if (timerRunning) updateRunningTimer()
 })
 
 function formatTimer(seconds, mode) {

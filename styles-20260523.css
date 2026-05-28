@@ -4198,8 +4198,9 @@ body:has(.bag-panel) .toast {
 .auth-page-shell::after {
   bottom: -18px;
   height: calc(min(100vw, 1080px) * 257 / 941 + 18px);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0 58px, #000 84px);
-  mask-image: linear-gradient(to bottom, transparent 0 58px, #000 84px);
+  background-image: url("./assets/auth-bottom-border-clean.png");
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
 @media (max-height: 760px) {

@@ -1,4 +1,10 @@
 const STORAGE_KEY = 'berry-start-todo-v1'
+const LOCAL_BACKUP_PREFIX = `${STORAGE_KEY}-backup-before-cloud-`
+const CLOUD_TABLE = 'todo_states'
+const supabaseConfig = window.BERRY_SUPABASE_CONFIG || {}
+const supabaseClient = window.supabase && supabaseConfig.url && supabaseConfig.publishableKey
+  ? window.supabase.createClient(supabaseConfig.url, supabaseConfig.publishableKey)
+  : null
 
 const todayKey = () => toDateKey(new Date())
 const toDateKey = (date) => {
@@ -145,7 +151,10 @@ const defaultState = () => ({
 })
 
 let state = loadState()
-let screen = 'card'
+let screen = supabaseClient ? 'auth' : 'card'
+let authMode = 'login'
+let authSubmitting = false
+let authMessage = ''
 let cardIndex = 0
 let activeTimerTaskId = null
 let timerMode = 'startup'
@@ -170,32 +179,128 @@ let isDeleteMode = false
 let rolloverPromptOpen = false
 let gachaAnimation = 'idle'
 let concealedGachaPoints = 0
+let currentUser = null
+let authReady = false
+let cloudSyncStatus = '仅保存在本机'
+let cloudSaveTimer = null
 
 function loadState() {
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY))
-    if (!stored) return defaultState()
-    const defaults = defaultState()
-    const loaded = {
-      ...defaults,
-      ...stored,
-      scoreRules: { ...defaults.scoreRules, ...(stored.scoreRules || {}) },
-      tasks: (stored.tasks || defaults.tasks).map(normalizeTask),
-      rewardCoupons: Array.isArray(stored.rewardCoupons) ? stored.rewardCoupons : defaults.rewardCoupons,
-    }
-    if (loaded.lastSeenDate !== todayKey()) {
-      loaded.selectedDate = todayKey()
-      loaded.lastSeenDate = todayKey()
-    }
-    return loaded
+    return mergeState(stored)
   } catch {
     return defaultState()
   }
 }
 
-function saveState() {
+function mergeState(stored) {
+  if (!stored) return defaultState()
+  const defaults = defaultState()
+  const loaded = {
+    ...defaults,
+    ...stored,
+    scoreRules: { ...defaults.scoreRules, ...(stored.scoreRules || {}) },
+    tasks: (stored.tasks || defaults.tasks).map(normalizeTask),
+    rewardCoupons: Array.isArray(stored.rewardCoupons) ? stored.rewardCoupons : defaults.rewardCoupons,
+  }
+  if (loaded.lastSeenDate !== todayKey()) {
+    loaded.selectedDate = todayKey()
+    loaded.lastSeenDate = todayKey()
+  }
+  return loaded
+}
+
+function saveState(options = {}) {
   state.lastSeenDate = todayKey()
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  if (!options.skipCloud) scheduleCloudSave()
+}
+
+function scheduleCloudSave() {
+  if (!authReady || !supabaseClient || !currentUser) return
+  clearTimeout(cloudSaveTimer)
+  cloudSyncStatus = '等待同步'
+  cloudSaveTimer = setTimeout(saveStateToCloud, 500)
+}
+
+async function saveStateToCloud() {
+  if (!supabaseClient || !currentUser) return
+  cloudSyncStatus = '同步中...'
+  const { error } = await supabaseClient
+    .from(CLOUD_TABLE)
+    .upsert({
+      user_id: currentUser.id,
+      state,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' })
+  cloudSyncStatus = error ? '云同步失败' : '已同步到云端'
+  if (document.querySelector('[data-cloud-status]')) openAccountModal()
+  if (error) toast(`同步失败：${error.message}`)
+}
+
+async function loadStateFromCloud() {
+  if (!supabaseClient || !currentUser) return
+  cloudSyncStatus = '读取云端数据...'
+  const { data, error } = await supabaseClient
+    .from(CLOUD_TABLE)
+    .select('state')
+    .eq('user_id', currentUser.id)
+    .maybeSingle()
+  if (error) {
+    cloudSyncStatus = '云同步未就绪'
+    return
+  }
+  if (data?.state) {
+    backupLocalStateBeforeCloudRestore()
+    state = mergeState(data.state)
+    calendarCursor = new Date(`${state.selectedDate}T00:00:00`)
+    saveState({ skipCloud: true })
+    cloudSyncStatus = '已从云端恢复'
+    render()
+  } else {
+    await saveStateToCloud()
+  }
+}
+
+function backupLocalStateBeforeCloudRestore() {
+  try {
+    const snapshot = localStorage.getItem(STORAGE_KEY)
+    if (!snapshot) return
+    const key = `${LOCAL_BACKUP_PREFIX}${new Date().toISOString()}`
+    localStorage.setItem(key, snapshot)
+  } catch {
+    cloudSyncStatus = '已从云端恢复，本机备份失败'
+  }
+}
+
+async function initializeSupabase() {
+  if (!supabaseClient) {
+    authReady = true
+    render()
+    return
+  }
+  const { data } = await supabaseClient.auth.getSession()
+  currentUser = data.session?.user || null
+  authReady = true
+  if (currentUser) {
+    screen = 'card'
+    await loadStateFromCloud()
+  } else {
+    render()
+  }
+  supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+    const previousUserId = currentUser?.id
+    currentUser = session?.user || null
+    if (currentUser) {
+      screen = screen === 'auth' ? 'card' : screen
+      if (currentUser.id !== previousUserId) await loadStateFromCloud()
+    }
+    if (!currentUser) {
+      cloudSyncStatus = '仅保存在本机'
+      screen = 'auth'
+    }
+    render()
+  })
 }
 
 function normalizeTask(task) {
@@ -567,8 +672,64 @@ function deleteReward(id) {
 
 function render() {
   const app = document.querySelector('#app')
-  app.innerHTML = screen === 'card' ? renderCardScreen() : screen === 'timer' ? renderTimerScreen() : renderMainScreen()
+  if (currentUser && screen === 'auth') screen = 'card'
+  app.innerHTML = screen === 'auth'
+    ? renderAuthScreen()
+    : screen === 'card'
+      ? renderCardScreen()
+      : screen === 'timer'
+        ? renderTimerScreen()
+        : renderMainScreen()
   bindEvents()
+}
+
+function renderAuthScreen() {
+  const isSignup = authMode === 'signup'
+  const isConfigured = Boolean(supabaseClient)
+  const submitText = authSubmitting ? '请稍等...' : isSignup ? '注册' : '登录'
+  const helperText = !isConfigured
+    ? '当前未连接云端账号，仍可本机使用。'
+    : isSignup
+      ? '注册后请到邮箱点击验证链接，再回来登录。'
+      : '登录后会恢复你的任务、习惯、积分和头像。'
+  return `
+    <main class="shell auth-page-shell">
+      <section class="auth-stage" data-auth-shell data-mode="${authMode}" aria-label="账号登录">
+        <div class="auth-ornament" aria-hidden="true"></div>
+        <article class="auth-card">
+          <figure class="auth-art">
+            <img src="./assets/auth-cake-preview.png" alt="" />
+          </figure>
+          <div class="auth-copy">
+            <span class="sticker-label">berry start</span>
+            <h1>莓莓启动</h1>
+            <p>把今天最该做的一件事递到面前</p>
+          </div>
+          <nav class="auth-tabs" aria-label="账号入口">
+            <button class="${!isSignup ? 'is-active' : ''}" type="button" data-auth-tab="login" aria-selected="${!isSignup}">登录</button>
+            <button class="${isSignup ? 'is-active' : ''}" type="button" data-auth-tab="signup" aria-selected="${isSignup}">注册</button>
+          </nav>
+          <form class="auth-form" data-auth-page-form>
+            <label class="signup-only">
+              <span>昵称</span>
+              <input type="text" name="nickname" placeholder="给自己取一个名字" autocomplete="nickname" ${!isSignup ? 'disabled' : ''} />
+            </label>
+            <label>
+              <span>邮箱</span>
+              <input type="email" name="email" placeholder="hello@berryday.com" autocomplete="email" required ${authSubmitting || !isConfigured ? 'disabled' : ''} />
+            </label>
+            <label>
+              <span>密码</span>
+              <input type="password" name="password" placeholder="请输入密码" autocomplete="${isSignup ? 'new-password' : 'current-password'}" minlength="6" required ${authSubmitting || !isConfigured ? 'disabled' : ''} />
+            </label>
+            <p class="auth-helper">${escapeHtml(authMessage || helperText)}</p>
+            <button class="primary-button" type="submit" data-auth-mode="${authMode}" ${authSubmitting || !isConfigured ? 'disabled' : ''}>${submitText}</button>
+            <button class="text-button" type="button" data-action="auth-local">先本机使用</button>
+          </form>
+        </article>
+      </section>
+    </main>
+  `
 }
 
 function renderCardScreen() {
@@ -696,6 +857,7 @@ function renderProfileMenu() {
   return `
     <section class="profile-menu">
       <button data-action="open-profile-modal">个人资料</button>
+      <button data-action="open-account-modal">账号与云同步</button>
       <button data-action="open-sync-modal">同步设置</button>
     </section>
   `
@@ -741,6 +903,98 @@ function openSyncModal() {
       </label>
     </div>
   `)
+}
+
+function openAccountModal() {
+  profileOpen = false
+  document.querySelector('.profile-menu')?.remove()
+  const isConfigured = Boolean(supabaseClient)
+  const email = currentUser?.email || ''
+  openModal(`
+    <div class="modal-form account-panel">
+      <h2>账号与云同步</h2>
+      ${!isConfigured ? `
+        <p>还未连接 Supabase 项目，当前数据只保存在这台设备上。</p>
+        <p class="account-tip">选定项目后填入公开的项目地址和 Publishable Key，即可启用邮箱账号。</p>
+      ` : currentUser ? `
+        <p class="account-user">已登录：<strong>${escapeHtml(email)}</strong></p>
+        <p data-cloud-status>${escapeHtml(cloudSyncStatus)}</p>
+        <button type="button" data-cloud-save>立即同步</button>
+        <button type="button" class="secondary-button" data-auth-signout>退出登录</button>
+      ` : `
+        <p>登录后，你的任务、习惯、积分和头像会同步到自己的云端空间。</p>
+        <form class="account-auth-form" data-auth-form>
+          <label>
+            邮箱
+            <input type="email" name="email" autocomplete="email" required />
+          </label>
+          <label>
+            密码
+            <input type="password" name="password" autocomplete="current-password" minlength="6" required />
+          </label>
+          <div class="account-actions">
+            <button type="submit" data-auth-mode="login">登录</button>
+            <button type="submit" class="secondary-button" data-auth-mode="signup">注册</button>
+          </div>
+        </form>
+        <p class="account-tip">注册后请到邮箱点击验证链接，再返回登录。</p>
+      `}
+    </div>
+  `)
+}
+
+async function submitAuthForm(form, mode) {
+  if (!supabaseClient) return
+  const data = new FormData(form)
+  const email = String(data.get('email') || '').trim()
+  const password = String(data.get('password') || '')
+  authSubmitting = true
+  authMessage = mode === 'signup' ? '正在发送验证邮件...' : '正在登录...'
+  if (screen === 'auth') render()
+  if (!email || !password) {
+    authSubmitting = false
+    authMessage = '请填写邮箱和密码'
+    if (screen === 'auth') render()
+    return
+  }
+  if (mode === 'signup') {
+    const { error } = await supabaseClient.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: location.href.split('#')[0] },
+    })
+    authSubmitting = false
+    if (error) {
+      authMessage = `注册失败：${error.message}`
+      if (screen === 'auth') render()
+      return toast(authMessage)
+    }
+    authMessage = '验证邮件已发送，请查收邮箱'
+    authMode = 'login'
+    if (screen === 'auth') render()
+    toast('验证邮件已发送，请查收邮箱')
+    return
+  }
+  const { error } = await supabaseClient.auth.signInWithPassword({ email, password })
+  authSubmitting = false
+  if (error) {
+    authMessage = `登录失败：${error.message}`
+    if (screen === 'auth') render()
+    return toast(authMessage)
+  }
+  screen = 'card'
+  authMessage = ''
+  closeModal()
+  toast('登录成功，正在同步')
+  render()
+}
+
+async function signOutAccount() {
+  if (!supabaseClient) return
+  const { error } = await supabaseClient.auth.signOut()
+  if (error) return toast(`退出失败：${error.message}`)
+  closeModal()
+  toast('已退出登录')
 }
 
 function renderActiveView() {
@@ -1262,6 +1516,18 @@ function importState(file) {
 }
 
 function bindEvents() {
+  document.querySelectorAll('[data-auth-tab]').forEach((button) => {
+    button.addEventListener('click', () => {
+      authMode = button.dataset.authTab
+      authMessage = ''
+      render()
+    })
+  })
+  const authPageForm = document.querySelector('[data-auth-page-form]')
+  authPageForm?.addEventListener('submit', (event) => {
+    event.preventDefault()
+    submitAuthForm(authPageForm, authMode)
+  })
   document.querySelectorAll('[data-action]').forEach((button) => {
     button.addEventListener('click', handleAction)
   })
@@ -1353,6 +1619,13 @@ function bindModalEvents() {
   document.querySelector('[data-import-state]')?.addEventListener('change', (event) => {
     importState(event.currentTarget.files?.[0])
   })
+  const authForm = document.querySelector('[data-auth-form]')
+  authForm?.addEventListener('submit', (event) => {
+    event.preventDefault()
+    submitAuthForm(authForm, event.submitter?.dataset.authMode || 'login')
+  })
+  document.querySelector('[data-auth-signout]')?.addEventListener('click', signOutAccount)
+  document.querySelector('[data-cloud-save]')?.addEventListener('click', saveStateToCloud)
   document.querySelectorAll('[data-rollover-move]').forEach((button) => {
     button.addEventListener('click', () => moveRolloverTask(button.dataset.rolloverMove))
   })
@@ -1424,6 +1697,7 @@ function bindModalEvents() {
 
 function handleAction(event) {
   const action = event.currentTarget.dataset.action
+  if (action === 'auth-local') screen = 'card'
   if (action === 'main') screen = 'main'
   if (action === 'card') screen = 'card'
   if (action === 'timer') startTimerForCard()
@@ -1441,6 +1715,7 @@ function handleAction(event) {
   }
   if (action === 'profile') profileOpen = !profileOpen
   if (action === 'open-profile-modal') openProfileModal()
+  if (action === 'open-account-modal') openAccountModal()
   if (action === 'open-sync-modal') openSyncModal()
   if (action === 'open-bag') openBagModal()
   if (action === 'undo') undoLastAction()
@@ -1463,7 +1738,7 @@ function handleAction(event) {
 }
 
 function renderIfNeeded(action) {
-  const noRender = ['add', 'calendar', 'close-modal', 'continue-timer', 'open-profile-modal', 'open-sync-modal', 'open-bag', 'rollover-dismiss']
+  const noRender = ['add', 'calendar', 'close-modal', 'continue-timer', 'open-profile-modal', 'open-account-modal', 'open-sync-modal', 'open-bag', 'rollover-dismiss']
   if (!noRender.includes(action)) render()
 }
 
@@ -1854,3 +2129,4 @@ function toast(message) {
 
 render()
 maybeOpenRolloverPrompt()
+initializeSupabase()

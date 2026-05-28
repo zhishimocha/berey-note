@@ -658,7 +658,7 @@ function renderAuthScreen() {
             <img src="./assets/auth-bow-reference-cutout.png" alt="" />
           </figure>
           <div class="auth-copy">
-            <h1>莓笺</h1>
+            <h1>莓绾记</h1>
           </div>
           <nav class="auth-tabs" aria-label="账号入口">
             <button class="${!isSignup ? 'is-active' : ''}" type="button" data-auth-tab="login" aria-selected="${!isSignup}">登录</button>
@@ -823,7 +823,7 @@ function openProfileModal() {
   document.querySelector('.profile-menu')?.remove()
   openModal(`
     <div class="modal-form profile-panel">
-      <h2>个人资料</h2>
+      <h2 style="color: var(--berry);">个人资料</h2>
       <label class="avatar-picker">
         <span>头像</span>
         <input type="file" accept="image/*" data-avatar-upload />
@@ -832,7 +832,7 @@ function openProfileModal() {
       <div class="profile-score-settings">
         <strong>账号</strong>
         ${currentUser ? `
-          <p class="account-user">已登录：<strong>${escapeHtml(email)}</strong></p>
+          <p class="account-user"><strong>${escapeHtml(email)}</strong></p>
           <p class="account-tip">当前数据只保存在本机。</p>
           <button type="button" class="secondary-button" data-auth-signout>退出登录</button>
         ` : `

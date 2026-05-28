@@ -151,7 +151,7 @@ const defaultState = () => ({
 })
 
 let state = loadState()
-let screen = 'card'
+let screen = 'auth'
 let authMode = 'login'
 let authSubmitting = false
 let authMessage = ''
@@ -275,6 +275,7 @@ function backupLocalStateBeforeCloudRestore() {
 
 async function initializeSupabase() {
   if (!supabaseClient) {
+    screen = 'auth'
     authReady = true
     render()
     return
@@ -285,18 +286,25 @@ async function initializeSupabase() {
   if (currentUser) {
     screen = 'card'
     await loadStateFromCloud()
+    render()
+    maybeOpenRolloverPrompt()
   } else {
+    screen = 'auth'
     render()
   }
   supabaseClient.auth.onAuthStateChange(async (_event, session) => {
     const previousUserId = currentUser?.id
     currentUser = session?.user || null
     if (currentUser) {
-      screen = screen === 'auth' ? 'card' : screen
+      screen = 'card'
       if (currentUser.id !== previousUserId) await loadStateFromCloud()
     }
-    if (!currentUser) cloudSyncStatus = '仅保存在本机'
+    if (!currentUser) {
+      screen = 'auth'
+      cloudSyncStatus = '仅保存在本机'
+    }
     render()
+    maybeOpenRolloverPrompt()
   })
 }
 
@@ -618,6 +626,7 @@ function openRolloverPrompt() {
 }
 
 function maybeOpenRolloverPrompt() {
+  if (screen === 'auth') return
   if (state.rolloverReviewedDate === todayKey() || !pendingRolloverTasks().length) return
   openRolloverPrompt()
 }

@@ -3783,12 +3783,12 @@ body:has(.timer-shell) {
   width: min(100vw, 1080px);
   max-width: 100vw;
   background:
-    url("./assets/top-border.png") top center / 100% auto no-repeat,
+    url("./assets/auth-top-border-clean.png") top center / 100% auto no-repeat,
     #fffaf6;
 }
 
 .auth-page-shell::before {
-  opacity: 0.84;
+  display: none;
 }
 
 .auth-page-shell::after {
@@ -3823,14 +3823,7 @@ body:has(.timer-shell) {
 }
 
 .auth-ornament {
-  position: absolute;
-  top: 86px;
-  right: max(12px, calc(50% - 245px));
-  width: 106px;
-  height: 88px;
-  background: url("./assets/bow-gingham.png") center / contain no-repeat;
-  filter: drop-shadow(0 8px 11px rgba(127, 23, 36, 0.12));
-  transform: rotate(7deg);
+  display: none;
 }
 
 .auth-page-shell .auth-card {
@@ -3875,7 +3868,7 @@ body:has(.timer-shell) {
 
 .auth-art {
   display: grid;
-  width: min(54%, 200px);
+  width: min(52%, 186px);
   aspect-ratio: 1;
   place-items: center;
   justify-self: center;
@@ -3890,7 +3883,7 @@ body:has(.timer-shell) {
 .auth-art img {
   width: 112%;
   height: 112%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .auth-copy {
@@ -3910,7 +3903,7 @@ body:has(.timer-shell) {
 .auth-copy h1 {
   margin: 0;
   color: var(--berry-dark);
-  font-size: clamp(2.25rem, 10vw, 3.2rem);
+  font-size: clamp(1.9rem, 8vw, 2.55rem);
   line-height: 1.05;
   letter-spacing: 0;
 }

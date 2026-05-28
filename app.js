@@ -684,23 +684,15 @@ function renderAuthScreen() {
   const isSignup = authMode === 'signup'
   const isConfigured = Boolean(supabaseClient)
   const submitText = authSubmitting ? '请稍等...' : isSignup ? '注册' : '登录'
-  const helperText = !isConfigured
-    ? '当前未连接云端账号，仍可本机使用。'
-    : isSignup
-      ? '注册后可能需要到邮箱点击验证链接；如果链接打不开，请先在 Supabase 里关闭邮箱确认或配置站点地址。'
-      : '登录后会恢复你的任务、习惯、积分和头像。'
   return `
     <main class="shell auth-page-shell">
       <section class="auth-stage" data-auth-shell data-mode="${authMode}" aria-label="账号登录">
-        <div class="auth-ornament" aria-hidden="true"></div>
         <article class="auth-card">
           <figure class="auth-art">
-            <img src="./assets/auth-cake-preview.png" alt="" />
+            <img src="./assets/auth-bow-reference-cutout.png" alt="" />
           </figure>
           <div class="auth-copy">
-            <span class="sticker-label">berry start</span>
             <h1>莓莓启动</h1>
-            <p>把今天最该做的一件事递到面前</p>
           </div>
           <nav class="auth-tabs" aria-label="账号入口">
             <button class="${!isSignup ? 'is-active' : ''}" type="button" data-auth-tab="login" aria-selected="${!isSignup}">登录</button>
@@ -719,9 +711,8 @@ function renderAuthScreen() {
               <span>密码</span>
               <input type="password" name="password" placeholder="请输入密码" autocomplete="${isSignup ? 'new-password' : 'current-password'}" minlength="6" required ${authSubmitting || !isConfigured ? 'disabled' : ''} />
             </label>
-            <p class="auth-helper">${escapeHtml(authMessage || helperText)}</p>
+            ${authMessage ? `<p class="auth-helper">${escapeHtml(authMessage)}</p>` : ''}
             <button class="primary-button" type="submit" data-auth-mode="${authMode}" ${authSubmitting || !isConfigured ? 'disabled' : ''}>${submitText}</button>
-            <button class="text-button" type="button" data-action="auth-local">先本机使用</button>
           </form>
         </article>
       </section>
@@ -919,7 +910,6 @@ function openAccountModal() {
         <button type="button" data-cloud-save>立即同步</button>
         <button type="button" class="secondary-button" data-auth-signout>退出登录</button>
       ` : `
-        <p>登录后，你的任务、习惯、积分和头像会同步到自己的云端空间。</p>
         <form class="account-auth-form" data-auth-form>
           <label>
             邮箱

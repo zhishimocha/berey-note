@@ -213,66 +213,23 @@ function mergeState(stored) {
 function saveState(options = {}) {
   state.lastSeenDate = todayKey()
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  if (!options.skipCloud) scheduleCloudSave()
 }
 
 function scheduleCloudSave() {
-  if (!authReady || !supabaseClient || !currentUser) return
-  clearTimeout(cloudSaveTimer)
-  cloudSyncStatus = '等待同步'
-  cloudSaveTimer = setTimeout(saveStateToCloud, 500)
+  cloudSyncStatus = '仅保存在本机'
 }
 
 async function saveStateToCloud() {
-  if (!supabaseClient || !currentUser) return
-  cloudSyncStatus = '同步中...'
-  const { error } = await supabaseClient
-    .from(CLOUD_TABLE)
-    .upsert({
-      user_id: currentUser.id,
-      state,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id' })
-  cloudSyncStatus = error ? '云同步失败' : '已同步到云端'
-  if (document.querySelector('[data-cloud-status]')) openAccountModal()
-  if (error) toast(`同步失败：${error.message}`)
+  cloudSyncStatus = '仅保存在本机'
 }
 
 async function loadStateFromCloud() {
-  if (!supabaseClient || !currentUser) return
-  cloudSyncStatus = '读取云端数据...'
-  const { data, error } = await supabaseClient
-    .from(CLOUD_TABLE)
-    .select('state')
-    .eq('user_id', currentUser.id)
-    .maybeSingle()
-  if (error) {
-    cloudSyncStatus = '云同步未就绪'
-    return
-  }
-  if (data?.state) {
-    backupLocalStateBeforeCloudRestore()
-    state = mergeState(data.state)
-    calendarCursor = new Date(`${state.selectedDate}T00:00:00`)
-    saveState({ skipCloud: true })
-    cloudSyncStatus = '已从云端恢复'
-    render()
-  } else {
-    await saveStateToCloud()
-  }
+  cloudSyncStatus = '仅保存在本机'
 }
 
 function backupLocalStateBeforeCloudRestore() {
-  try {
-    const snapshot = localStorage.getItem(STORAGE_KEY)
-    if (!snapshot) return
-    const key = `${LOCAL_BACKUP_PREFIX}${new Date().toISOString()}`
-    localStorage.setItem(key, snapshot)
-  } catch {
-    cloudSyncStatus = '已从云端恢复，本机备份失败'
-  }
+  return null
 }
-
 async function initializeSupabase() {
   if (!supabaseClient) {
     screen = 'auth'
@@ -285,7 +242,7 @@ async function initializeSupabase() {
   authReady = true
   if (currentUser) {
     screen = 'card'
-    await loadStateFromCloud()
+    cloudSyncStatus = '仅保存在本机'
     render()
     maybeOpenRolloverPrompt()
   } else {
@@ -297,7 +254,7 @@ async function initializeSupabase() {
     currentUser = session?.user || null
     if (currentUser) {
       screen = 'card'
-      if (currentUser.id !== previousUserId) await loadStateFromCloud()
+      cloudSyncStatus = '仅保存在本机'
     }
     if (!currentUser) {
       screen = 'auth'
@@ -701,7 +658,7 @@ function renderAuthScreen() {
             <img src="./assets/auth-bow-reference-cutout.png" alt="" />
           </figure>
           <div class="auth-copy">
-            <h1>莓莓启动</h1>
+            <h1>莓笺</h1>
           </div>
           <nav class="auth-tabs" aria-label="账号入口">
             <button class="${!isSignup ? 'is-active' : ''}" type="button" data-auth-tab="login" aria-selected="${!isSignup}">登录</button>
@@ -854,14 +811,14 @@ function renderProfileMenu() {
   return `
     <section class="profile-menu">
       <button data-action="open-profile-modal">个人资料</button>
-      <button data-action="open-account-modal">账号与云同步</button>
-      <button data-action="open-sync-modal">同步设置</button>
+      <button data-action="open-sync-modal">本地备份</button>
     </section>
   `
 }
 
 function openProfileModal() {
   const rules = scoreRules()
+  const email = currentUser?.email || ''
   profileOpen = false
   document.querySelector('.profile-menu')?.remove()
   openModal(`
@@ -872,6 +829,16 @@ function openProfileModal() {
         <input type="file" accept="image/*" data-avatar-upload />
         <i>${state.avatarImage ? `<img src="${escapeHtml(state.avatarImage)}" alt="" />` : ''}</i>
       </label>
+      <div class="profile-score-settings">
+        <strong>账号</strong>
+        ${currentUser ? `
+          <p class="account-user">已登录：<strong>${escapeHtml(email)}</strong></p>
+          <p class="account-tip">当前数据只保存在本机。</p>
+          <button type="button" class="secondary-button" data-auth-signout>退出登录</button>
+        ` : `
+          <p class="account-tip">当前为本地模式，数据只保存在这台设备上。</p>
+        `}
+      </div>
       <div class="profile-score-settings">
         <strong>基础分</strong>
         <div class="score-rules">
@@ -892,7 +859,8 @@ function openSyncModal() {
   document.querySelector('.profile-menu')?.remove()
   openModal(`
     <div class="modal-form sync-panel">
-      <h2>同步设置</h2>
+      <h2>本地备份</h2>
+      <p>当前数据只保存在本机，可以用导出/导入做手动备份。</p>
       <button type="button" data-export-state>导出</button>
       <label class="import-button">
         导入
@@ -903,42 +871,8 @@ function openSyncModal() {
 }
 
 function openAccountModal() {
-  profileOpen = false
-  document.querySelector('.profile-menu')?.remove()
-  const isConfigured = Boolean(supabaseClient)
-  const email = currentUser?.email || ''
-  openModal(`
-    <div class="modal-form account-panel">
-      <h2>账号与云同步</h2>
-      ${!isConfigured ? `
-        <p>还未连接 Supabase 项目，当前数据只保存在这台设备上。</p>
-        <p class="account-tip">选定项目后填入公开的项目地址和 Publishable Key，即可启用邮箱账号。</p>
-      ` : currentUser ? `
-        <p class="account-user">已登录：<strong>${escapeHtml(email)}</strong></p>
-        <p data-cloud-status>${escapeHtml(cloudSyncStatus)}</p>
-        <button type="button" data-cloud-save>立即同步</button>
-        <button type="button" class="secondary-button" data-auth-signout>退出登录</button>
-      ` : `
-        <form class="account-auth-form" data-auth-form>
-          <label>
-            邮箱
-            <input type="email" name="email" autocomplete="email" required />
-          </label>
-          <label>
-            密码
-            <input type="password" name="password" autocomplete="current-password" minlength="6" required />
-          </label>
-          <div class="account-actions">
-            <button type="submit" data-auth-mode="login">登录</button>
-            <button type="submit" class="secondary-button" data-auth-mode="signup">注册</button>
-          </div>
-        </form>
-        <p class="account-tip">注册后请到邮箱点击验证链接，再返回登录。</p>
-      `}
-    </div>
-  `)
+  openProfileModal()
 }
-
 async function submitAuthForm(form, mode) {
   if (!supabaseClient) return
   const data = new FormData(form)
@@ -981,7 +915,7 @@ async function submitAuthForm(form, mode) {
   screen = 'card'
   authMessage = ''
   closeModal()
-  toast('登录成功，正在同步')
+  toast('登录成功，数据已保存在本机')
   render()
 }
 
@@ -1621,7 +1555,6 @@ function bindModalEvents() {
     submitAuthForm(authForm, event.submitter?.dataset.authMode || 'login')
   })
   document.querySelector('[data-auth-signout]')?.addEventListener('click', signOutAccount)
-  document.querySelector('[data-cloud-save]')?.addEventListener('click', saveStateToCloud)
   document.querySelectorAll('[data-rollover-move]').forEach((button) => {
     button.addEventListener('click', () => moveRolloverTask(button.dataset.rolloverMove))
   })
@@ -1711,15 +1644,6 @@ function handleAction(event) {
   }
   if (action === 'profile') profileOpen = !profileOpen
   if (action === 'open-profile-modal') openProfileModal()
-  if (action === 'open-account-modal') {
-    if (supabaseClient && !currentUser) {
-      profileOpen = false
-      screen = 'auth'
-      render()
-    } else {
-      openAccountModal()
-    }
-  }
   if (action === 'open-sync-modal') openSyncModal()
   if (action === 'open-bag') openBagModal()
   if (action === 'undo') undoLastAction()
@@ -1742,7 +1666,7 @@ function handleAction(event) {
 }
 
 function renderIfNeeded(action) {
-  const noRender = ['add', 'calendar', 'close-modal', 'continue-timer', 'open-profile-modal', 'open-account-modal', 'open-sync-modal', 'open-bag', 'rollover-dismiss']
+  const noRender = ['add', 'calendar', 'close-modal', 'continue-timer', 'open-profile-modal', 'open-sync-modal', 'open-bag', 'rollover-dismiss']
   if (!noRender.includes(action)) render()
 }
 

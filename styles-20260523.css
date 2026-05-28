@@ -4175,3 +4175,37 @@ body:has(.bag-panel) .toast {
   text-align: center;
   white-space: nowrap;
 }
+
+/* v40: auth page clean logo + remove footer seam */
+.auth-art {
+  width: min(68%, 260px);
+  aspect-ratio: auto;
+  margin: -58px 0 -4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.auth-art img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.auth-page-shell::after {
+  bottom: -18px;
+  height: calc(min(100vw, 1080px) * 257 / 941 + 18px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0 20px, #000 34px);
+  mask-image: linear-gradient(to bottom, transparent 0 20px, #000 34px);
+}
+
+@media (max-height: 760px) {
+  .auth-art {
+    width: min(62%, 238px);
+    margin-top: -44px;
+  }
+}
+

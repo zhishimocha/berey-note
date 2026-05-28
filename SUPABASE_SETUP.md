@@ -7,8 +7,8 @@ Connected project: `berry-todo` (`ccsaagokhakzlhievcwr`, `ap-southeast-1`).
 ## Finish the Supabase connection
 
 1. Run `supabase/todo_states.sql` in the `berry-todo` project's SQL editor or apply it as a migration.
-2. In Authentication > Providers, keep Email enabled and require email confirmation for production.
-3. In Authentication > URL Configuration, set the deployed Site URL and add local/deployed redirect URLs used for email confirmation.
+2. In Authentication > Providers, keep Email enabled. For personal testing, you can turn email confirmation off so registration signs in directly. For production, turn confirmation back on.
+3. If email confirmation is enabled, go to Authentication > URL Configuration and set the deployed Site URL, then add every local/deployed redirect URL used by the app. If these URLs are missing, the confirmation email can open a "cannot access" page even though the signup request succeeded.
 4. The project's public URL and **Publishable Key** are in `supabase-config.js`. Never place a secret key or `service_role` key in this frontend.
 5. For production email delivery, configure custom SMTP under Authentication settings.
 

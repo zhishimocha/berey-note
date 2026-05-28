@@ -151,7 +151,7 @@ const defaultState = () => ({
 })
 
 let state = loadState()
-let screen = supabaseClient ? 'auth' : 'card'
+let screen = 'card'
 let authMode = 'login'
 let authSubmitting = false
 let authMessage = ''
@@ -295,10 +295,7 @@ async function initializeSupabase() {
       screen = screen === 'auth' ? 'card' : screen
       if (currentUser.id !== previousUserId) await loadStateFromCloud()
     }
-    if (!currentUser) {
-      cloudSyncStatus = '仅保存在本机'
-      screen = 'auth'
-    }
+    if (!currentUser) cloudSyncStatus = '仅保存在本机'
     render()
   })
 }
@@ -690,7 +687,7 @@ function renderAuthScreen() {
   const helperText = !isConfigured
     ? '当前未连接云端账号，仍可本机使用。'
     : isSignup
-      ? '注册后请到邮箱点击验证链接，再回来登录。'
+      ? '注册后可能需要到邮箱点击验证链接；如果链接打不开，请先在 Supabase 里关闭邮箱确认或配置站点地址。'
       : '登录后会恢复你的任务、习惯、积分和头像。'
   return `
     <main class="shell auth-page-shell">
@@ -1715,7 +1712,15 @@ function handleAction(event) {
   }
   if (action === 'profile') profileOpen = !profileOpen
   if (action === 'open-profile-modal') openProfileModal()
-  if (action === 'open-account-modal') openAccountModal()
+  if (action === 'open-account-modal') {
+    if (supabaseClient && !currentUser) {
+      profileOpen = false
+      screen = 'auth'
+      render()
+    } else {
+      openAccountModal()
+    }
+  }
   if (action === 'open-sync-modal') openSyncModal()
   if (action === 'open-bag') openBagModal()
   if (action === 'undo') undoLastAction()

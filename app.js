@@ -696,7 +696,7 @@ function renderCardScreen() {
         <article class="task-focus-card" data-swipe-card>
           <span class="sticker-label">today first</span>
           <div class="bow-mark"></div>
-          ${task ? `<h1>${escapeHtml(task.title)}</h1><p>${taskCategoryName(task)} · +${taskScore(task)}分</p>${task.note ? `<p class="task-note">${escapeHtml(task.note)}</p>` : ''}` : `<h1>今天没有待办</h1><p>可以轻轻休息一下</p>`}
+          ${task ? `<h1>${escapeHtml(task.title)}</h1><p>${taskCategoryName(task)} + ${taskScore(task)}分</p>${task.note ? `<p class="task-note">${escapeHtml(task.note)}</p>` : ''}` : `<h1>今天没有待办</h1><p>可以轻轻休息一下</p>`}
           <div class="card-actions">
             <button type="button" data-action="timer" ${task ? '' : 'disabled'}>进入计时</button>
             <button type="button" data-action="next-card" ${task ? '' : 'disabled'}>下一张</button>
@@ -975,7 +975,7 @@ function renderSmallTask(task) {
       <button class="mini-task-copy" data-task-id="${task.id}">
         <span>${escapeHtml(task.title)}</span>
         ${task.note ? `<em>${escapeHtml(task.note)}</em>` : ''}
-        <small>${taskCategoryName(task)} · +${taskScore(task)}分${deadline}</small>
+        <small>${taskCategoryName(task)} + ${taskScore(task)}分${deadline}</small>
       </button>
       ${isDeleteMode ? '' : `<button class="check-round task-check" data-complete-task="${task.id}" aria-label="标记完成"></button>`}
       ${isDeleteMode ? `<i class="delete-dot" data-delete-task="${task.id}">×</i>` : ''}

@@ -102,9 +102,9 @@ const defaultState = () => ({
   lastSeenDate: todayKey(),
   rolloverReviewedDate: '',
   activeView: 'quadrants',
-  points: 15,
+  points: 0,
   avatarImage: '',
-  completedTotal: 2,
+  completedTotal: 0,
   completions: {},
   tomorrowFirst: {},
   scoreRules: defaultScoreRules,
@@ -112,41 +112,9 @@ const defaultState = () => ({
   lastGachaReward: null,
   lastAction: null,
   timerSoundEnabled: true,
-  tasks: [
-    {
-      id: crypto.randomUUID(),
-      title: '把 Todo 第一版跑起来',
-      date: todayKey(),
-      quadrant: 'q1',
-      done: false,
-      createdAt: Date.now() - 300000,
-    },
-    {
-      id: crypto.randomUUID(),
-      title: '整理明天最先做的一件事',
-      date: todayKey(),
-      quadrant: 'q2',
-      done: false,
-      createdAt: Date.now() - 240000,
-    },
-    {
-      id: crypto.randomUUID(),
-      title: '给自己换一个小奖励',
-      date: todayKey(),
-      quadrant: 'q4',
-      done: false,
-      createdAt: Date.now() - 120000,
-    },
-  ],
-  habits: [
-    { id: crypto.randomUUID(), name: '喝水', streak: 3, startDate: todayKey(), endDate: addDays(todayKey(), 20), permanent: false, checkedDates: [] },
-    { id: crypto.randomUUID(), name: '睡前收尾', streak: 1, startDate: todayKey(), permanent: true, checkedDates: [] },
-  ],
-  rewards: [
-    { id: crypto.randomUUID(), name: '休息半小时', cost: 20 },
-    { id: crypto.randomUUID(), name: '奶茶券', cost: 30 },
-    { id: crypto.randomUUID(), name: '买小东西', cost: 80 },
-  ],
+  tasks: [],
+  habits: [],
+  rewards: [],
   rewardCoupons: [],
 })
 
@@ -184,13 +152,31 @@ let authReady = false
 let cloudSyncStatus = '仅保存在本机'
 let cloudSaveTimer = null
 
-function loadState() {
+function storageKeyForUser(user = currentUser) {
+  return user?.id ? `${STORAGE_KEY}-user-${user.id}` : STORAGE_KEY
+}
+
+function loadStateFromKey(key) {
   try {
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY))
+    const stored = JSON.parse(localStorage.getItem(key))
     return mergeState(stored)
   } catch {
     return defaultState()
   }
+}
+
+function loadState() {
+  return loadStateFromKey(STORAGE_KEY)
+}
+
+function loadStateForCurrentUser() {
+  state = loadStateFromKey(storageKeyForUser())
+  calendarCursor = new Date(`${state.selectedDate}T00:00:00`)
+  cardIndex = 0
+  activeTimerTaskId = null
+  timerRunning = false
+  clearInterval(timerInterval)
+  closeModal()
 }
 
 function mergeState(stored) {
@@ -212,7 +198,7 @@ function mergeState(stored) {
 
 function saveState(options = {}) {
   state.lastSeenDate = todayKey()
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  localStorage.setItem(storageKeyForUser(), JSON.stringify(state))
 }
 
 function scheduleCloudSave() {
@@ -230,6 +216,7 @@ async function loadStateFromCloud() {
 function backupLocalStateBeforeCloudRestore() {
   return null
 }
+
 async function initializeSupabase() {
   if (!supabaseClient) {
     screen = 'auth'
@@ -241,6 +228,7 @@ async function initializeSupabase() {
   currentUser = data.session?.user || null
   authReady = true
   if (currentUser) {
+    loadStateForCurrentUser()
     screen = 'card'
     cloudSyncStatus = '仅保存在本机'
     render()
@@ -250,18 +238,20 @@ async function initializeSupabase() {
     render()
   }
   supabaseClient.auth.onAuthStateChange(async (_event, session) => {
-    const previousUserId = currentUser?.id
+    const wasLoggedIn = Boolean(currentUser)
     currentUser = session?.user || null
     if (currentUser) {
+      loadStateForCurrentUser()
       screen = 'card'
       cloudSyncStatus = '仅保存在本机'
+      render()
+      maybeOpenRolloverPrompt()
+      return
     }
-    if (!currentUser) {
-      screen = 'auth'
-      cloudSyncStatus = '仅保存在本机'
-    }
+    if (wasLoggedIn) state = defaultState()
+    screen = 'auth'
+    cloudSyncStatus = '仅保存在本机'
     render()
-    maybeOpenRolloverPrompt()
   })
 }
 
@@ -833,8 +823,9 @@ function openProfileModal() {
         <strong>账号</strong>
         ${currentUser ? `
           <p class="account-user"><strong>${escapeHtml(email)}</strong></p>
-          <p class="account-tip">当前数据只保存在本机。</p>
+          <p class="account-tip">当前数据只保存在本机，并按账号单独保存。</p>
           <button type="button" class="secondary-button" data-auth-signout>退出登录</button>
+          <button type="button" class="secondary-button" data-action="open-delete-account-modal">注销账号</button>
         ` : `
           <p class="account-tip">当前为本地模式，数据只保存在这台设备上。</p>
         `}
@@ -868,6 +859,44 @@ function openSyncModal() {
       </label>
     </div>
   `)
+}
+
+function openDeleteAccountModal() {
+  if (!currentUser) return toast('当前未登录')
+  const email = currentUser.email || '当前账号'
+  profileOpen = false
+  document.querySelector('.profile-menu')?.remove()
+  openModal(`
+    <div class="modal-form delete-account-panel">
+      <h2>注销账号</h2>
+      <p>将清除 ${escapeHtml(email)} 在本机保存的全部数据，并退出登录。邮箱账号本身不会从 Supabase 后台删除。</p>
+      <button type="button" class="secondary-button" data-confirm-delete-account>确认注销并清除数据</button>
+      <button type="button" data-action="close-modal">取消</button>
+    </div>
+  `)
+}
+
+async function deleteAccountLocally() {
+  if (!currentUser) return toast('当前未登录')
+  const key = storageKeyForUser(currentUser)
+  localStorage.removeItem(key)
+  try {
+    if (supabaseClient) {
+      await supabaseClient.from(CLOUD_TABLE).delete().eq('user_id', currentUser.id)
+    }
+  } catch {
+    // 当前版本主要使用本机保存；云端删除失败不影响本机注销。
+  }
+  if (supabaseClient) {
+    const { error } = await supabaseClient.auth.signOut()
+    if (error) return toast(`注销失败：${error.message}`)
+  }
+  currentUser = null
+  state = defaultState()
+  screen = 'auth'
+  closeModal()
+  render()
+  toast('已清除本机数据并退出登录')
 }
 
 function openAccountModal() {
@@ -905,13 +934,15 @@ async function submitAuthForm(form, mode) {
     toast('验证邮件已发送，请查收邮箱')
     return
   }
-  const { error } = await supabaseClient.auth.signInWithPassword({ email, password })
+  const { data: signInData, error } = await supabaseClient.auth.signInWithPassword({ email, password })
   authSubmitting = false
   if (error) {
     authMessage = `登录失败：${error.message}`
     if (screen === 'auth') render()
     return toast(authMessage)
   }
+  currentUser = signInData.session?.user || currentUser
+  if (currentUser) loadStateForCurrentUser()
   screen = 'card'
   authMessage = ''
   closeModal()
@@ -1555,6 +1586,7 @@ function bindModalEvents() {
     submitAuthForm(authForm, event.submitter?.dataset.authMode || 'login')
   })
   document.querySelector('[data-auth-signout]')?.addEventListener('click', signOutAccount)
+  document.querySelector('[data-confirm-delete-account]')?.addEventListener('click', deleteAccountLocally)
   document.querySelectorAll('[data-rollover-move]').forEach((button) => {
     button.addEventListener('click', () => moveRolloverTask(button.dataset.rolloverMove))
   })
@@ -1645,6 +1677,7 @@ function handleAction(event) {
   if (action === 'profile') profileOpen = !profileOpen
   if (action === 'open-profile-modal') openProfileModal()
   if (action === 'open-sync-modal') openSyncModal()
+  if (action === 'open-delete-account-modal') openDeleteAccountModal()
   if (action === 'open-bag') openBagModal()
   if (action === 'undo') undoLastAction()
   if (action === 'toggle-delete') isDeleteMode = !isDeleteMode
@@ -1666,7 +1699,7 @@ function handleAction(event) {
 }
 
 function renderIfNeeded(action) {
-  const noRender = ['add', 'calendar', 'close-modal', 'continue-timer', 'open-profile-modal', 'open-sync-modal', 'open-bag', 'rollover-dismiss']
+  const noRender = ['add', 'calendar', 'close-modal', 'continue-timer', 'open-profile-modal', 'open-sync-modal', 'open-delete-account-modal', 'open-bag', 'rollover-dismiss']
   if (!noRender.includes(action)) render()
 }
 
